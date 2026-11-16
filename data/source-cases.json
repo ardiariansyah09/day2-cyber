@@ -1,0 +1,562 @@
+[
+  {
+    "module": "sql",
+    "id": "sql-login",
+    "pdf": 1,
+    "page": 1,
+    "title": [
+      "SQL Injection: bypass login",
+      "SQL injection: login bypass"
+    ],
+    "concept": [
+      "Input login mengubah logika query, sehingga aplikasi dapat memberikan sesi tanpa memverifikasi password dengan benar.",
+      "Login input changes query logic, allowing a session without proper password verification."
+    ],
+    "steps": [
+      [
+        "Buka halaman 1–3 sumber. Bandingkan nilai Email, body POST, dan akun pada respons.",
+        "Open source pages 1–3. Compare Email, the POST body, and the response account."
+      ],
+      [
+        "Catat token dan identitas akun yang diberikan. Bedakan status 200 dari bukti bahwa autentikasi berhasil.",
+        "Record the issued token and identity. Distinguish status 200 from evidence of successful authentication."
+      ],
+      [
+        "Susun retest: input yang sama tidak boleh memberikan sesi; login sah tetap berfungsi.",
+        "Plan a retest: the same input must not grant a session; legitimate login must still work."
+      ]
+    ],
+    "evidence": [
+      "Respons memuat token serta identitas admin; ini bukti yang lebih kuat daripada status HTTP saja.",
+      "The response includes a token and admin identity, stronger evidence than HTTP status alone."
+    ],
+    "fix": [
+      "Gunakan parameter binding, verifikasi password secara benar, dan batasi hak database.",
+      "Use parameter binding, proper password verification, and least-privilege database access."
+    ],
+    "flow": [
+      "Input login → logika SQL → sesi admin",
+      "Email input → SQL logic → session admin"
+    ]
+  },
+  {
+    "module": "sql",
+    "id": "sql-export",
+    "pdf": 1,
+    "page": 4,
+    "title": [
+      "SQL Injection: kebocoran data pencarian",
+      "SQL injection: search data exposure"
+    ],
+    "concept": [
+      "Parameter pencarian yang masuk ke SQL tanpa binding dapat membuka akses ke data di luar hasil produk.",
+      "A search parameter inserted into SQL without binding can expose data beyond product results."
+    ],
+    "steps": [
+      [
+        "Buka halaman 4–7. Identifikasi endpoint /rest/products/search dan parameter q.",
+        "Open pages 4–7. Identify /rest/products/search and parameter q."
+      ],
+      [
+        "Baca hasil sqlmap dan tabel yang ditampilkan. Catat hanya nama kolom dan jenis data; samarkan nilainya.",
+        "Read sqlmap output and the table shown. Record column names and data types; redact values."
+      ],
+      [
+        "Bandingkan pencarian produk yang sah dengan keluarnya data pengguna; rumuskan retest setelah query diperbaiki.",
+        "Compare legitimate product search with exposed user data; plan a retest after query repair."
+      ]
+    ],
+    "evidence": [
+      "Tabel pengguna dan hash password tampak pada hasil. Jenis teknik injeksi perlu mengikuti log alat; uraian sumber menyebut beberapa mekanisme.",
+      "User data and password hashes appear in the output. Infer injection technique from tool logs; the source narrative mentions multiple mechanisms."
+    ],
+    "fix": [
+      "Parameterisasi query, batasi hak baca database, dan gunakan hashing password yang sesuai.",
+      "Parameterize queries, restrict database read privileges, and use suitable password hashing."
+    ],
+    "flow": [
+      "Parameter q → query → kebocoran data pengguna",
+      "Search q → query → user data exposure"
+    ]
+  },
+  {
+    "module": "authz",
+    "id": "idor-cart",
+    "pdf": 1,
+    "page": 7,
+    "title": [
+      "IDOR: akses keranjang lintas akun",
+      "IDOR: cross-account cart access"
+    ],
+    "concept": [
+      "Mengubah ID keranjang tidak boleh mengubah batas izin pengguna.",
+      "Changing a cart ID must not bypass user permissions."
+    ],
+    "steps": [
+      [
+        "Buka halaman 7–13. Identifikasi dua akun dan ID keranjang pembanding.",
+        "Open pages 7–13. Identify two accounts and their cart IDs."
+      ],
+      [
+        "Bandingkan request normal dengan request yang ID objeknya diubah. Catat bukti isi keranjang milik akun lain.",
+        "Compare a normal request with one using a changed object ID. Record evidence of the other account’s cart contents."
+      ],
+      [
+        "Rancang matriks retest: akun A/objek A diterima; akun A/objek B ditolak.",
+        "Build a retest matrix: account A/object A allowed; account A/object B denied."
+      ]
+    ],
+    "evidence": [
+      "Bukti harus menghubungkan akun peminta dengan pemilik objek, bukan hanya menunjukkan ID yang berbeda.",
+      "Evidence must connect the requesting account with object ownership, not merely show a changed ID."
+    ],
+    "fix": [
+      "Periksa kepemilikan atau kebijakan akses pada setiap operasi objek di server.",
+      "Enforce ownership or access policy on every server-side object operation."
+    ],
+    "flow": [
+      "Akun A → keranjang B → pemeriksaan pemilik",
+      "Account A → cart B → ownership check"
+    ]
+  },
+  {
+    "module": "browser",
+    "id": "xss-juice",
+    "pdf": 1,
+    "page": 13,
+    "title": [
+      "XSS dan HTML injection pada pencarian",
+      "Search XSS and HTML injection"
+    ],
+    "concept": [
+      "Input pencarian dapat mencapai konteks HTML atau skrip ketika output tidak ditangani sesuai konteks.",
+      "Search input can reach HTML or script contexts without appropriate output handling."
+    ],
+    "steps": [
+      [
+        "Buka halaman 13–16. Pisahkan bukti dialog JavaScript, perubahan markup, dan template injection.",
+        "Open pages 13–16. Separate evidence of JavaScript dialogs, markup changes, and template injection."
+      ],
+      [
+        "Catat titik input serta tempat output muncul. Bedakan HTML injection dari eksekusi JavaScript.",
+        "Identify the input and output location. Distinguish HTML injection from JavaScript execution."
+      ],
+      [
+        "Jelaskan data yang dapat diakses skrip halaman dan batas cookie HttpOnly; buat retest output aman.",
+        "Explain page-script access and the HttpOnly cookie boundary; plan safe-output retests."
+      ]
+    ],
+    "evidence": [
+      "Dialog skrip menunjukkan eksekusi; tautan HTML saja belum membuktikan JavaScript berjalan. Cookie HttpOnly tidak dapat dibaca dengan document.cookie.",
+      "A script dialog demonstrates execution; an HTML link alone does not. HttpOnly cookies cannot be read through document.cookie."
+    ],
+    "fix": [
+      "Gunakan output encoding sesuai konteks, sink DOM aman, sanitasi HTML bila diperlukan, serta CSP sebagai lapisan tambahan.",
+      "Use context-aware encoding, safe DOM sinks, HTML sanitization where needed, and CSP as an additional layer."
+    ],
+    "flow": [
+      "Input pencarian → konteks output → perilaku browser",
+      "Search input → output context → browser behavior"
+    ]
+  },
+  {
+    "module": "file",
+    "id": "path-api",
+    "pdf": 2,
+    "page": 1,
+    "title": [
+      "Path Traversal pada Files API",
+      "Files API path traversal"
+    ],
+    "concept": [
+      "Path yang keluar dari direktori dasar dapat membuka file di luar cakupan akses.",
+      "A path escaping the base directory can expose files outside the access boundary."
+    ],
+    "steps": [
+      [
+        "Buka halaman 1–2. Identifikasi path file normal dan permintaan traversal.",
+        "Open pages 1–2. Identify the normal file path and traversal request."
+      ],
+      [
+        "Bandingkan path yang diminta dengan direktori dasar serta hasil normalisasinya.",
+        "Compare the requested path with the base directory and normalized result."
+      ],
+      [
+        "Catat respons yang membuktikan file di luar direktori dapat terbaca; susun retest penolakan dan file sah.",
+        "Record response evidence of an out-of-directory read; plan denial and legitimate-file retests."
+      ]
+    ],
+    "evidence": [
+      "Perubahan path harus disertai bukti respons file di luar direktori; status 200 saja tidak cukup.",
+      "A changed path needs response evidence of an out-of-directory file; status 200 alone is insufficient."
+    ],
+    "fix": [
+      "Normalisasi dan periksa containment path, tangani symlink, serta verifikasi izin objek file.",
+      "Normalize paths, enforce containment, account for symlinks, and verify file permissions."
+    ],
+    "flow": [
+      "Path permintaan → normalisasi → batas direktori",
+      "Requested path → normalize → directory boundary"
+    ]
+  },
+  {
+    "module": "state",
+    "id": "gift-card",
+    "pdf": 2,
+    "page": 3,
+    "title": [
+      "Gift card: kode yang dapat diprediksi",
+      "Gift cards: predictable codes"
+    ],
+    "concept": [
+      "Kode dibentuk dari timestamp yang diketahui; kode yang tampak acak belum tentu tidak dapat ditebak.",
+      "Codes derived from a known timestamp can be predictable despite appearing random."
+    ],
+    "steps": [
+      [
+        "Buka halaman 3–15. Temukan metadata createdAt dan algoritma pembentukan kode.",
+        "Open pages 3–15. Find createdAt metadata and the code-generation algorithm."
+      ],
+      [
+        "Telusuri hubungan timestamp → seed → kode. Bandingkan pemilik, penerima, dan akun penukar.",
+        "Trace timestamp → seed → code. Compare owner, recipient, and redeeming account."
+      ],
+      [
+        "Catat bukti saldo masuk ke akun lain; pisahkan kelemahan randomness dari lemahnya verifikasi penerima.",
+        "Record evidence of credit to another account; distinguish weak randomness from missing recipient checks."
+      ]
+    ],
+    "evidence": [
+      "Kode direkonstruksi dari metadata, lalu saldo ditambahkan ke akun penukar lain. Ada dua kontrol yang perlu diperbaiki.",
+      "The code is reconstructed from metadata and credited to another account. Two controls require repair."
+    ],
+    "fix": [
+      "Gunakan generator acak kriptografis, verifikasi hak penukaran, dan konsumsi kode secara atomik.",
+      "Use cryptographic randomness, verify redemption rights, and consume codes atomically."
+    ],
+    "flow": [
+      "createdAt → kode dapat diprediksi → hak penukaran",
+      "createdAt → predictable code → redemption rights"
+    ]
+  },
+  {
+    "module": "state",
+    "id": "coupon-race",
+    "pdf": 2,
+    "page": 15,
+    "title": [
+      "Race Condition: kupon sekali pakai",
+      "Race condition: single-use coupons"
+    ],
+    "concept": [
+      "Dua request dapat sama-sama lolos pemeriksaan sebelum salah satunya memperbarui jumlah penggunaan.",
+      "Two requests may both pass validation before either updates the usage counter."
+    ],
+    "steps": [
+      [
+        "Buka halaman 15–27. Bandingkan preview kupon dengan pembuatan pesanan yang mengonsumsi kupon.",
+        "Open pages 15–27. Distinguish coupon preview from order creation that consumes usage."
+      ],
+      [
+        "Susun urutan A: cek sisa → B: cek sisa → A: gunakan → B: gunakan. Bandingkan dengan request berurutan.",
+        "Trace A: check remaining → B: check remaining → A: consume → B: consume. Compare with sequential requests."
+      ],
+      [
+        "Catat jumlah penggunaan efektif dan pesanan berdiskon; retest harus memeriksa efek akhir pada data.",
+        "Record effective usage and discounted orders; retest final data effects."
+      ]
+    ],
+    "evidence": [
+      "Untuk kupon sekali pakai, maksimal satu penggunaan efektif boleh berhasil. Banyak respons 200 belum membuktikan diskon dipakai berulang.",
+      "A single-use coupon allows at most one effective redemption. Multiple 200 responses alone do not prove repeated discounts."
+    ],
+    "fix": [
+      "Satukan validasi dan konsumsi dalam operasi atomik atau transaksi dengan kontrol concurrency yang tepat.",
+      "Combine validation and consumption atomically or in a transaction with appropriate concurrency controls."
+    ],
+    "flow": [
+      "Pemeriksaan A / B → penggunaan A / B → diskon berulang",
+      "Check A / Check B → Use A / Use B → duplicate discount"
+    ]
+  },
+  {
+    "module": "config",
+    "id": "client-secret",
+    "pdf": 2,
+    "page": 27,
+    "title": [
+      "Secret yang ikut masuk ke kode browser",
+      "Secrets shipped to the browser"
+    ],
+    "concept": [
+      "Nilai yang dipaketkan ke JavaScript klien dapat dibaca pengguna; nama variabel environment tidak menjadikannya rahasia.",
+      "Values bundled into client JavaScript are readable by users; an environment-variable name does not make them secret."
+    ],
+    "steps": [
+      [
+        "Buka halaman 27–32. Temukan NEXT_PUBLIC_PAYMENT_SECRET dan header X-Payment-Auth.",
+        "Open pages 27–32. Find NEXT_PUBLIC_PAYMENT_SECRET and X-Payment-Auth."
+      ],
+      [
+        "Telusuri nilai dari konfigurasi build ke bundle browser lalu ke request pembayaran.",
+        "Trace the value from build configuration to browser bundle to payment request."
+      ],
+      [
+        "Catat bahwa nilai tersedia pada klien; jelaskan mengapa pemeriksaan berbasis shared secret tersebut tidak cukup.",
+        "Record client-side exposure; explain why that shared-secret check is insufficient."
+      ]
+    ],
+    "evidence": [
+      "Nilai rahasia tampak pada artefak klien atau traffic. Ketiadaan nama variabel asli pada bundle bukan bukti nilainya aman.",
+      "The secret value is visible in client artifacts or traffic. Absence of the original variable name does not establish secrecy."
+    ],
+    "fix": [
+      "Pindahkan secret dan validasi pembayaran ke server; rotasi nilai yang sudah terekspos.",
+      "Keep secrets and payment validation server-side; rotate exposed values."
+    ],
+    "flow": [
+      "Konfigurasi build → kode browser → header permintaan",
+      "Build config → browser bundle → request header"
+    ]
+  },
+  {
+    "module": "sql",
+    "id": "sql-privilege",
+    "pdf": 3,
+    "page": 1,
+    "title": [
+      "SQL Injection: perubahan hak akses",
+      "SQL injection: privilege changes"
+    ],
+    "concept": [
+      "Query pencarian yang dapat diubah tidak hanya berisiko membocorkan data; hak akses database dapat memperbesar dampak.",
+      "An injectable search query can affect more than confidentiality; database privileges can enlarge its impact."
+    ],
+    "steps": [
+      [
+        "Buka halaman 1–4. Amati menu akun biasa dan fitur pencarian SHOP.",
+        "Open pages 1–4. Inspect the ordinary user menu and SHOP search."
+      ],
+      [
+        "Identifikasi operasi INSERT ke user_authorities dalam contoh, lalu cari bukti perubahan role atau akses administratif.",
+        "Identify INSERT into user_authorities in the example, then look for role-change or admin-access evidence."
+      ],
+      [
+        "Pisahkan pesan respons pencarian dari bukti privilege escalation; rancang retest akun biasa setelah perbaikan.",
+        "Separate the search response from proof of privilege escalation; plan ordinary-user retests after repair."
+      ]
+    ],
+    "evidence": [
+      "Kesimpulan eskalasi perlu bukti role atau akses berubah. Pesan error atau keberhasilan query saja tidak cukup.",
+      "Escalation requires evidence of changed roles or access. An error or query response alone is insufficient."
+    ],
+    "fix": [
+      "Gunakan binding dan hak database minimum; endpoint pencarian tidak memerlukan hak menulis tabel otorisasi.",
+      "Use binding and least-privilege database access; search does not need write access to authorization tables."
+    ],
+    "flow": [
+      "Input pencarian → perubahan data → perubahan hak akses",
+      "Search input → database write → role change"
+    ]
+  },
+  {
+    "module": "browser",
+    "id": "xss-reflected",
+    "pdf": 3,
+    "page": 4,
+    "title": [
+      "Reflected XSS pada halaman produk",
+      "Reflected XSS on product pages"
+    ],
+    "concept": [
+      "Input pencarian direfleksikan ke halaman dan dapat berubah menjadi kode pada browser.",
+      "Search input is reflected into a page and may become browser-executed code."
+    ],
+    "steps": [
+      [
+        "Buka halaman 4–5. Identifikasi fitur pencarian pada kategori produk.",
+        "Open pages 4–5. Identify search in the product category."
+      ],
+      [
+        "Telusuri input → respons HTML → dialog yang ditampilkan. Bedakan refleksi teks dan eksekusi skrip.",
+        "Trace input → HTML response → displayed dialog. Distinguish text reflection from script execution."
+      ],
+      [
+        "Rancang retest: input ditampilkan sebagai teks aman dan tidak menjalankan kode, sementara pencarian normal tetap bekerja.",
+        "Plan a retest: input displays safely without executing, while ordinary search still works."
+      ]
+    ],
+    "evidence": [
+      "Eksekusi harus dibuktikan pada konteks origin halaman, bukan sekadar keberadaan tag pada respons.",
+      "Execution must be demonstrated in the page origin, not merely by tags appearing in the response."
+    ],
+    "fix": [
+      "Terapkan encoding output sesuai konteks dan hindari sink yang mengeksekusi input.",
+      "Apply context-aware output encoding and avoid executable input sinks."
+    ],
+    "flow": [
+      "Pencarian → output yang direfleksikan → eksekusi skrip",
+      "Search → reflected output → script execution"
+    ]
+  },
+  {
+    "module": "config",
+    "id": "error-stack",
+    "pdf": 3,
+    "page": 5,
+    "title": [
+      "Error SQL dan stack trace terbuka",
+      "Exposed SQL errors and stack traces"
+    ],
+    "concept": [
+      "Respons error dapat mengungkap query, nama tabel, kolom, dan path internal.",
+      "Error responses can expose queries, table names, columns, and internal paths."
+    ],
+    "steps": [
+      [
+        "Buka halaman 5–7. Bandingkan pencarian normal dengan input test yang diikuti tanda petik.",
+        "Open pages 5–7. Compare normal search with a test input followed by a quote."
+      ],
+      [
+        "Kelompokkan informasi terbuka: query SQL, skema database, dan stack trace.",
+        "Group exposed information: SQL query, database schema, and stack trace."
+      ],
+      [
+        "Tulis respons publik pengganti dengan ID referensi serta rancangan log internal untuk investigasi.",
+        "Write a replacement public response with a reference ID and an internal investigation log design."
+      ]
+    ],
+    "evidence": [
+      "Bukti berupa rincian internal dalam respons yang terlihat pengguna. Error belum dengan sendirinya membuktikan SQL Injection.",
+      "Evidence is internal detail in a user-visible response. An error alone does not establish SQL injection."
+    ],
+    "fix": [
+      "Gunakan penanganan error terpusat, matikan debug publik, dan batasi akses log.",
+      "Use centralized error handling, disable public debugging, and restrict log access."
+    ],
+    "flow": [
+      "Input tidak valid → kesalahan internal → respons publik",
+      "Malformed input → internal exception → public error"
+    ]
+  },
+  {
+    "module": "sql",
+    "id": "xml-entity",
+    "pdf": 3,
+    "page": 7,
+    "title": [
+      "XML: entity internal dan risiko XXE",
+      "XML: internal entities and XXE risk"
+    ],
+    "concept": [
+      "DTD dapat mendefinisikan entity. Pembacaan sumber eksternal bergantung pada konfigurasi parser dan harus dibuktikan terpisah.",
+      "A DTD can define entities. External resource access depends on parser configuration and needs separate evidence."
+    ],
+    "steps": [
+      [
+        "Buka halaman 7–9. Temukan fitur Upload XML Files dan deklarasi entity example bernilai Doe.",
+        "Open pages 7–9. Find Upload XML Files and the internal entity example with value Doe."
+      ],
+      [
+        "Ikuti alur upload → edit XML → Save. Amati lastName yang berubah menjadi Doe.",
+        "Trace upload → edit XML → Save. Observe lastName becoming Doe."
+      ],
+      [
+        "Klasifikasikan bukti sebagai ekspansi entity internal. Tentukan bukti tambahan yang diperlukan sebelum menyimpulkan akses file eksternal.",
+        "Classify the evidence as internal entity expansion. Identify further evidence needed before claiming external file access."
+      ]
+    ],
+    "evidence": [
+      "Contoh menunjukkan ekspansi entity internal; tidak ada deklarasi SYSTEM yang membuktikan pembacaan file eksternal pada contoh tersebut.",
+      "The example shows internal entity expansion; it has no SYSTEM declaration demonstrating external file access."
+    ],
+    "fix": [
+      "Nonaktifkan external entity dan DTD yang tidak diperlukan; batasi akses jaringan serta file parser.",
+      "Disable unnecessary external entities and DTDs; restrict parser network and file access."
+    ],
+    "flow": [
+      "XML + entity internal → parser → lastName: Doe",
+      "XML + internal entity → parser → lastName: Doe"
+    ]
+  },
+  {
+    "module": "sql",
+    "id": "command-shell",
+    "pdf": 3,
+    "page": 9,
+    "title": [
+      "Input aplikasi menjadi perintah sistem",
+      "Application input becomes a system command"
+    ],
+    "concept": [
+      "Menjalankan perintah dari input web memberi akses sesuai hak proses server; fitur shell memerlukan pembatasan yang ketat.",
+      "Running web input as commands exposes the privileges of the server process; shell features require strict controls."
+    ],
+    "steps": [
+      [
+        "Buka halaman 9–11. Identifikasi text box Windows Command To Execute.",
+        "Open pages 9–11. Identify Windows Command To Execute."
+      ],
+      [
+        "Baca bukti perintah yang membuat file batch lalu menjalankan proses Calculator. Tidak perlu menjalankan perintah pada perangkat ini.",
+        "Read evidence of a batch-file write followed by Calculator execution. Do not execute commands on this device."
+      ],
+      [
+        "Petakan input web → shell → filesystem/proses. Tentukan batas hak akses dan retest fungsi yang diizinkan.",
+        "Map web input → shell → filesystem/process. Identify privilege boundaries and allowed-function retests."
+      ]
+    ],
+    "evidence": [
+      "Bukti menunjukkan kemampuan menjalankan perintah. Pisahkan fitur shell yang sengaja tersedia dari injeksi melalui parameter pada fungsi terbatas.",
+      "Evidence shows command execution. Distinguish an intentionally exposed shell from injection into a restricted function."
+    ],
+    "fix": [
+      "Hindari shell untuk input pengguna, gunakan API atau daftar operasi yang diizinkan, dan jalankan proses dengan hak minimum.",
+      "Avoid user-driven shells, use APIs or an operation allowlist, and apply least privilege."
+    ],
+    "flow": [
+      "Input web → shell sistem operasi → file/proses",
+      "Web input → OS shell → file/process"
+    ]
+  },
+  {
+    "module": "config",
+    "id": "log-forging",
+    "pdf": 3,
+    "page": 11,
+    "title": [
+      "Log Forging: input menyerupai entri resmi",
+      "Log forging: input mimics a trusted entry"
+    ],
+    "concept": [
+      "Baris baru dan format log dalam input dapat menyamarkan data pengguna menjadi catatan peristiwa resmi.",
+      "Newlines and log-like input can disguise user data as trusted event records."
+    ],
+    "steps": [
+      [
+        "Buka halaman 11–12. Identifikasi input dua baris pada fitur Log Entry.",
+        "Open pages 11–12. Identify two-line input in Log Entry."
+      ],
+      [
+        "Bandingkan teks masukan dan output console: cari baris pembayaran palsu yang tampak seperti event aplikasi.",
+        "Compare input and console output: find the fake payment line resembling an application event."
+      ],
+      [
+        "Usulkan representasi terstruktur yang mempertahankan input sebagai satu field, lalu rancang retest karakter baris baru.",
+        "Propose structured logging that preserves input in one field; plan newline-character retests."
+      ]
+    ],
+    "evidence": [
+      "Log menyerupai event resmi, tetapi tidak membuktikan pembayaran benar-benar dibatalkan.",
+      "The log resembles a trusted event but does not prove a payment was actually reversed."
+    ],
+    "fix": [
+      "Gunakan structured logging, escape karakter kontrol, dan pisahkan field pesan dari metadata event.",
+      "Use structured logging, escape control characters, and separate message fields from event metadata."
+    ],
+    "flow": [
+      "Teks pengguna + baris baru → entri log palsu",
+      "User text + newline → forged log line"
+    ]
+  }
+]

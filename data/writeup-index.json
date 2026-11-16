@@ -1,0 +1,34 @@
+[
+  {
+    "file": "Writeup LAB VAPT (1).pdf",
+    "pages": 16,
+    "findings": [
+      "SQL Injection (Authentication Bypass)",
+      "SQL Injection ( Data Exfiltration via sqlmap)",
+      "IDOR - Broken Access Control",
+      "Cross-Site Scripting (XSS)"
+    ]
+  },
+  {
+    "file": "Writeup LAB VAPT (2).pdf",
+    "pages": 32,
+    "findings": [
+      "Path Traversal pada Files API",
+      "Insecure Randomness — Predictable Gift Card",
+      "Race Condition — Single-Use Coupon Abuse (TOCTOU)",
+      "Client-Side Secret Leak (NEXT_PUBLIC_)"
+    ]
+  },
+  {
+    "file": "Writeup LAB VAPT (3).pdf",
+    "pages": 12,
+    "findings": [
+      "SQL Injection – Privilege Escalation via User Search",
+      "Reflected Cross-Site Scripting (XSS)",
+      "Information Disclosure via SQL Error and Stack Trace",
+      "XML External Entity (XXE) Injection",
+      "Command Injection melalui Fitur Command Shell",
+      "Log Forging (Log Injection)"
+    ]
+  }
+]

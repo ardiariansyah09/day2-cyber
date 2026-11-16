@@ -1,0 +1,519 @@
+{
+  "http": {
+    "title": {
+      "id": "Metode HTTP dan status respons",
+      "en": "HTTP methods and response statuses"
+    },
+    "choices": [
+      {
+        "label": "GET",
+        "id": "200 OK — Data pesanan ditemukan. GET membaca resource tanpa membuat pesanan baru.",
+        "en": "200 OK — Order found. GET reads a resource without creating a new order.",
+        "trace": "GET /api/orders/12 → 200 OK"
+      },
+      {
+        "label": "POST",
+        "id": "201 Created — Pesanan baru dibuat setelah validasi. POST mengirim data untuk diproses.",
+        "en": "201 Created — New order created after validation. POST submits data for processing.",
+        "trace": "POST /api/orders → 201 Created"
+      },
+      {
+        "label": "DELETE",
+        "id": "403 Forbidden — Server memahami permintaan, tetapi akun contoh tidak punya izin menghapus.",
+        "en": "403 Forbidden — The server understands the request, but this demo account cannot delete.",
+        "trace": "DELETE /api/orders/12 → 403 Forbidden"
+      }
+    ],
+    "challenge": {
+      "id": "Respons mana yang paling tepat saat pesanan baru berhasil dibuat?",
+      "en": "Which response best describes a successfully created order?",
+      "options": {
+        "id": [
+          "200 OK untuk semua operasi",
+          "201 Created setelah POST",
+          "403 Forbidden setelah POST"
+        ],
+        "en": [
+          "200 OK for every operation",
+          "201 Created after POST",
+          "403 Forbidden after POST"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "201 menandakan resource baru berhasil dibuat; 200 tidak selalu berarti ada resource baru.",
+        "en": "201 indicates a new resource was created; 200 does not specifically indicate creation."
+      }
+    }
+  },
+  "map": {
+    "title": {
+      "id": "Petakan endpoint aplikasi",
+      "en": "Map application endpoints"
+    },
+    "choices": [
+      {
+        "label": "Halaman produk",
+        "id": "GET /products → halaman HTML; catat tautan menuju detail produk.",
+        "en": "GET /products → HTML page; record links to product details.",
+        "trace": "GET /products → 200 HTML"
+      },
+      {
+        "label": "Endpoint API",
+        "id": "GET /api/products/12 → JSON produk; catat metode, ID dan respons.",
+        "en": "GET /api/products/12 → product JSON; record method, ID and response.",
+        "trace": "GET /api/products/12 → 200 JSON"
+      },
+      {
+        "label": "Parameter pencarian",
+        "id": "GET /api/search?q=router → JSON hasil pencarian; q adalah parameter input, belum tentu rentan.",
+        "en": "GET /api/search?q=router → JSON search results; q is an input parameter, not necessarily vulnerable.",
+        "trace": "GET /api/search?q=router → 200 JSON"
+      }
+    ],
+    "challenge": {
+      "id": "Apa yang perlu dicatat ketika menemukan /api/search?q=router?",
+      "en": "What should be recorded when discovering /api/search?q=router?",
+      "options": {
+        "id": [
+          "Endpoint, metode GET, parameter q, dan respons",
+          "Langsung menyatakan SQL injection",
+          "Menghapus endpoint dari daftar"
+        ],
+        "en": [
+          "Endpoint, GET method, q parameter, and response",
+          "Immediately claim SQL injection",
+          "Remove the endpoint from the list"
+        ]
+      },
+      "answer": 0,
+      "why": {
+        "id": "Reconnaissance adalah inventarisasi permukaan uji; keberadaan parameter bukan bukti kerentanan.",
+        "en": "Reconnaissance inventories the test surface; a parameter alone does not prove a vulnerability."
+      }
+    }
+  },
+  "proxy": {
+    "title": {
+      "id": "Amati perubahan request",
+      "en": "Observe request changes"
+    },
+    "choices": [
+      {
+        "label": "Request asli",
+        "id": "POST /checkout total=250000 → server menghitung ulang 250000.",
+        "en": "POST /checkout total=250000 → server recalculates 250000.",
+        "trace": "POST /checkout total=250000"
+      },
+      {
+        "label": "Ubah total",
+        "id": "POST /checkout total=1000 → server yang rentan mempercayai 1000. Ini contoh cacat validasi bisnis.",
+        "en": "POST /checkout total=1000 → vulnerable server trusts 1000. This illustrates missing business validation.",
+        "trace": "POST /checkout total=1000"
+      },
+      {
+        "label": "Validasi server",
+        "id": "POST /checkout total=1000 → server menghitung harga sebenarnya 250000.",
+        "en": "POST /checkout total=1000 → server recalculates the actual price as 250000.",
+        "trace": "POST /checkout total=1000 → recalculated"
+      }
+    ],
+    "challenge": {
+      "id": "Apa yang harus dilakukan server terhadap total harga dari browser?",
+      "en": "What should a server do with a price total sent by the browser?",
+      "options": {
+        "id": [
+          "Mempercayai angka dari browser",
+          "Menghitung ulang dari data harga terpercaya",
+          "Menghapus semua transaksi"
+        ],
+        "en": [
+          "Trust the browser total",
+          "Recalculate using trusted price data",
+          "Delete all transactions"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "Proxy dapat mengubah request; harga dan keputusan penting harus divalidasi ulang pada server.",
+        "en": "A proxy can modify requests; prices and important decisions must be validated on the server."
+      }
+    }
+  },
+  "auth": {
+    "title": {
+      "id": "Uji siklus hidup sesi",
+      "en": "Test session lifecycle"
+    },
+    "choices": [
+      {
+        "label": "Login valid",
+        "id": "POST /login → 200, server membuat sesi baru dan cookie sesi.",
+        "en": "POST /login → 200, server creates a new session and session cookie.",
+        "trace": "POST /login → 200"
+      },
+      {
+        "label": "Kata sandi salah",
+        "id": "POST /login → 401, tidak ada sesi baru yang diberikan.",
+        "en": "POST /login → 401, no new session is issued.",
+        "trace": "POST /login → 401"
+      },
+      {
+        "label": "Sesi setelah logout",
+        "id": "GET /account dengan sesi lama → 401 karena sesi telah dicabut di server.",
+        "en": "GET /account with old session → 401 because the server revoked the session.",
+        "trace": "GET /account → 401"
+      }
+    ],
+    "challenge": {
+      "id": "Setelah logout, apa yang harus terjadi pada session ID lama?",
+      "en": "After logout, what should happen to the old session ID?",
+      "options": {
+        "id": [
+          "Tetap bisa dipakai",
+          "Tidak lagi valid di server",
+          "Bisa digunakan oleh semua akun"
+        ],
+        "en": [
+          "Remain usable",
+          "Become invalid on the server",
+          "Work for every account"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "Menghapus cookie saja tidak cukup bila sesi di server masih aktif.",
+        "en": "Removing the cookie alone is insufficient if the server-side session remains active."
+      }
+    }
+  },
+  "authz": {
+    "title": {
+      "id": "Periksa akses objek",
+      "en": "Check object access"
+    },
+    "choices": [
+      {
+        "label": "Pesanan sendiri",
+        "id": "Andi meminta pesanan 104 miliknya → 200 OK.",
+        "en": "Andi requests his own order 104 → 200 OK.",
+        "trace": "GET /orders/104 → 200"
+      },
+      {
+        "label": "Pesanan orang lain",
+        "id": "Andi meminta pesanan 105 milik Budi → 403 Forbidden pada skenario ini.",
+        "en": "Andi requests Budi’s order 105 → 403 Forbidden in this scenario.",
+        "trace": "GET /orders/105 → 403"
+      },
+      {
+        "label": "Tanpa login",
+        "id": "Permintaan tanpa sesi → 401 Unauthorized.",
+        "en": "Request without a session → 401 Unauthorized.",
+        "trace": "GET /orders/104 → 401"
+      }
+    ],
+    "challenge": {
+      "id": "Andi login lalu meminta pesanan Budi. Pemeriksaan apa yang diperlukan?",
+      "en": "Andi is logged in and requests Budi’s order. What check is needed?",
+      "options": {
+        "id": [
+          "Cukup cek sudah login",
+          "Cek apakah Andi berhak atas pesanan itu",
+          "Izinkan semua ID angka"
+        ],
+        "en": [
+          "Only check login",
+          "Check whether Andi may access that order",
+          "Allow every numeric ID"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "Autentikasi membuktikan siapa pengguna; otorisasi menentukan objek yang boleh diakses.",
+        "en": "Authentication identifies the user; authorization controls which objects they may access."
+      }
+    }
+  },
+  "sql": {
+    "title": {
+      "id": "Bedakan data dan sintaks SQL",
+      "en": "Separate SQL data from syntax"
+    },
+    "choices": [
+      {
+        "label": "Input biasa",
+        "id": "Pencarian nama produk normal → hasil sesuai kata kunci.",
+        "en": "Normal product name search → results match the search term.",
+        "trace": "SELECT ... WHERE name = ?"
+      },
+      {
+        "label": "Tanda kutip",
+        "id": "Input mengandung tanda kutip → query yang disusun dengan konkatenasi bisa rusak dan menampilkan error.",
+        "en": "Quoted input → concatenated SQL may break and expose an error.",
+        "trace": "SELECT ... WHERE name = '..."
+      },
+      {
+        "label": "Query parameter",
+        "id": "Input yang sama diproses sebagai data melalui parameter binding, bukan bagian sintaks SQL.",
+        "en": "The same input is bound as data, not interpreted as SQL syntax.",
+        "trace": "SELECT ... WHERE name = ?"
+      }
+    ],
+    "challenge": {
+      "id": "Manakah perbaikan utama untuk query SQL dari input pengguna?",
+      "en": "What is the primary fix for SQL queries using user input?",
+      "options": {
+        "id": [
+          "Menyambung string SQL",
+          "Menggunakan prepared statement dan parameter binding",
+          "Menyembunyikan tombol cari"
+        ],
+        "en": [
+          "Concatenate SQL strings",
+          "Use prepared statements and parameter binding",
+          "Hide the search button"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "Parameter binding memisahkan nilai input dari struktur query.",
+        "en": "Parameter binding separates input values from query structure."
+      }
+    }
+  },
+  "browser": {
+    "title": {
+      "id": "Bandingkan rendering teks dan HTML",
+      "en": "Compare text and HTML rendering"
+    },
+    "choices": [
+      {
+        "label": "Teks biasa",
+        "id": "Komentar Halo ditampilkan sebagai teks biasa.",
+        "en": "Hello comment is displayed as plain text.",
+        "trace": "textContent = \"Halo\""
+      },
+      {
+        "label": "Tag HTML",
+        "id": "Komentar <b>Halo</b> diproses sebagai HTML oleh innerHTML; ini berisiko jika input tidak tepercaya.",
+        "en": "Comment <b>Hello</b> is parsed as HTML by innerHTML; risky for untrusted input.",
+        "trace": "innerHTML = input"
+      },
+      {
+        "label": "Render aman",
+        "id": "Komentar <b>Halo</b> ditampilkan secara literal dengan textContent.",
+        "en": "Comment <b>Hello</b> is displayed literally with textContent.",
+        "trace": "textContent = input"
+      }
+    ],
+    "challenge": {
+      "id": "Untuk menampilkan komentar pengguna sebagai teks, properti mana yang tepat?",
+      "en": "Which property safely displays a user comment as text?",
+      "options": {
+        "id": [
+          "innerHTML",
+          "textContent",
+          "document.write"
+        ],
+        "en": [
+          "innerHTML",
+          "textContent",
+          "document.write"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "textContent tidak menafsirkan tag HTML dari komentar sebagai markup.",
+        "en": "textContent does not interpret HTML tags in comments as markup."
+      }
+    }
+  },
+  "file": {
+    "title": {
+      "id": "Uji batas direktori berkas",
+      "en": "Test file directory boundaries"
+    },
+    "choices": [
+      {
+        "label": "Berkas valid",
+        "id": "/uploads/readme.txt berada dalam direktori yang diizinkan → dapat dibaca bila aksesnya sah.",
+        "en": "/uploads/readme.txt is inside the allowed directory → readable if authorized.",
+        "trace": "GET /files/readme.txt → 200"
+      },
+      {
+        "label": "Path keluar",
+        "id": "../config mencoba keluar dari /uploads → ditolak karena berada di luar batas direktori.",
+        "en": "../config attempts to escape /uploads → rejected outside the allowed directory.",
+        "trace": "GET /files/../config → 403"
+      },
+      {
+        "label": "Subfolder valid",
+        "id": "subdir/help.txt tetap di bawah /uploads → diizinkan bila aksesnya sah.",
+        "en": "subdir/help.txt remains under /uploads → allowed if authorized.",
+        "trace": "GET /files/subdir/help.txt → 200"
+      }
+    ],
+    "challenge": {
+      "id": "Apa yang harus diperiksa setelah path dinormalisasi?",
+      "en": "What must be checked after normalizing a path?",
+      "options": {
+        "id": [
+          "Hanya ekstensi file",
+          "Batas direktori dan izin akses",
+          "Panjang nama file saja"
+        ],
+        "en": [
+          "Only the extension",
+          "Directory boundary and access permission",
+          "Only filename length"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "Normalisasi, batas direktori, dan izin file merupakan pemeriksaan yang saling melengkapi.",
+        "en": "Normalization, directory containment, and file authorization are complementary checks."
+      }
+    }
+  },
+  "config": {
+    "title": {
+      "id": "Bandingkan informasi error",
+      "en": "Compare error disclosure"
+    },
+    "choices": [
+      {
+        "label": "Debug publik",
+        "id": "Server menampilkan stack trace dan detail internal kepada pengguna → informasi sensitif dapat bocor.",
+        "en": "Server shows stack traces and internal details to users → sensitive information may leak.",
+        "trace": "HTTP 500 + stack trace"
+      },
+      {
+        "label": "Error generik",
+        "id": "Pengguna menerima pesan umum; detail disimpan di log internal.",
+        "en": "User receives a generic error; details remain in internal logs.",
+        "trace": "HTTP 500 + generic message"
+      },
+      {
+        "label": "Header keamanan",
+        "id": "Server menambahkan header keamanan yang relevan; tetap perlu konfigurasi yang sesuai konteks.",
+        "en": "Server adds relevant security headers; configuration still depends on context.",
+        "trace": "Content-Security-Policy: ..."
+      }
+    ],
+    "challenge": {
+      "id": "Ke mana detail stack trace sebaiknya dikirim?",
+      "en": "Where should stack trace details go?",
+      "options": {
+        "id": [
+          "Ke respons publik",
+          "Ke log internal yang terlindungi",
+          "Ke URL publik"
+        ],
+        "en": [
+          "To the public response",
+          "To protected internal logs",
+          "To a public URL"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "Pengguna cukup menerima pesan error yang aman; detail diagnostik tetap tersedia bagi tim internal.",
+        "en": "Users should receive a safe error message; diagnostics belong in internal logs."
+      }
+    }
+  },
+  "state": {
+    "title": {
+      "id": "Uji aturan alur transaksi",
+      "en": "Test transaction workflow rules"
+    },
+    "choices": [
+      {
+        "label": "Bayar lalu kirim",
+        "id": "Pesanan dibayar, kemudian dikirim → transisi valid.",
+        "en": "Order is paid, then shipped → valid transition.",
+        "trace": "CREATED → PAID → SHIPPED"
+      },
+      {
+        "label": "Kirim sebelum bayar",
+        "id": "Pesanan langsung dikirim tanpa pembayaran → harus ditolak.",
+        "en": "Order ships before payment → must be rejected.",
+        "trace": "CREATED → SHIPPED → rejected"
+      },
+      {
+        "label": "Kupon dua kali",
+        "id": "Kupon sekali pakai dicoba lagi → harus ditolak oleh aturan atomik server.",
+        "en": "Single-use coupon retried → must be rejected by atomic server rules.",
+        "trace": "USED coupon → rejected"
+      }
+    ],
+    "challenge": {
+      "id": "Apa yang harus memutuskan apakah pesanan boleh dikirim?",
+      "en": "What should decide whether an order can be shipped?",
+      "options": {
+        "id": [
+          "Tombol yang terlihat",
+          "Aturan transisi status di server",
+          "Parameter dari browser saja"
+        ],
+        "en": [
+          "Visible button",
+          "Server-side state transition rules",
+          "Browser parameter alone"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "Alur bisnis harus memvalidasi status saat ini dan transisi yang diizinkan.",
+        "en": "Business workflows must validate current state and allowed transitions."
+      }
+    }
+  },
+  "report": {
+    "title": {
+      "id": "Susun bukti pengujian",
+      "en": "Build testing evidence"
+    },
+    "choices": [
+      {
+        "label": "Scope",
+        "id": "Tentukan target dan fitur yang memang diizinkan sebelum menguji.",
+        "en": "Define authorized targets and features before testing.",
+        "trace": "Scope: /api/orders"
+      },
+      {
+        "label": "Evidence",
+        "id": "Catat request, respons, akun uji, waktu, serta hasil aktual.",
+        "en": "Record request, response, test account, time, and observed result.",
+        "trace": "Evidence: request + response"
+      },
+      {
+        "label": "Retest",
+        "id": "Setelah perbaikan, ulangi langkah untuk memastikan masalah tidak lagi terjadi.",
+        "en": "After remediation, repeat steps to verify the issue no longer occurs.",
+        "trace": "Retest: expected 403"
+      }
+    ],
+    "challenge": {
+      "id": "Apa yang membuktikan sebuah temuan telah diperbaiki?",
+      "en": "What demonstrates a finding has been fixed?",
+      "options": {
+        "id": [
+          "Hanya klaim sudah selesai",
+          "Retest dengan langkah dan bukti yang dapat diulang",
+          "Menghapus laporan lama"
+        ],
+        "en": [
+          "Only a claim that it is done",
+          "Reproducible retest steps and evidence",
+          "Deleting the old report"
+        ]
+      },
+      "answer": 1,
+      "why": {
+        "id": "Retest menguji kembali kondisi yang sebelumnya menimbulkan temuan.",
+        "en": "Retesting repeats the conditions that originally produced the finding."
+      }
+    }
+  }
+}

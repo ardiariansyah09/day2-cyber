@@ -1,0 +1,218 @@
+Vulnerable Finding
+1. SQL Injection (Authentication Bypass)
+Dengan memasukkan payload injeksi sederhana di kolom Email pada halaman login, kita bisa
+memaksa server menganggap kondisi otentikasi terpenuhi dan menerima token admin.
+Payload ' OR 1=1 -- mengubah logika query SQL yang memverifikasi kredensial menjadi
+kondisi yang selalu benar (1=1). Ini menunjukkan server menggabungkan input pengguna
+langsung ke pernyataan SQL tanpa prepared statements.
+Halaman Login Juice Shop. Di sini kita memasukkan payload injeksi klasik pada field Email: '
+OR 1=1 -- dan sembarang password (123).
+SQL Injection (injeksi SQL) = teknik memasukkan potongan perintah SQL melalui input
+pengguna untuk mengubah/perintah database; payload = input yang dimasukkan untuk
+mengeksploitasi celah.
+
+-- 1 of 16 --
+
+Bukti request yang ditangkap oleh Burp Suite (tool intercept HTTP yang membantu melihat dan
+memodifikasi lalu lintas web). Request POST menunjukkan body JSON: {"email":"' OR 1=1
+--","password":"123"}.
+POST = metode HTTP untuk mengirim data ke server; JSON = format data (JavaScript Object
+Notation).
+Bukti response dari server: status HTTP/1.1 200 OK dan body berisi authentication token
+(token otentikasi — string yang mewakili sesi/akses) dan field umail:"admin@juice-sh.op".
+
+-- 2 of 16 --
+
+Hasil akhir di UI: setelah browser menerima token admin, kita login sebagai admin@juice-sh.op
+(menu Account menunjukkan status admin).
+Analisis teknis singkat:
+Payload ' OR 1=1 -- mengubah logika query SQL yang memverifikasi kredensial menjadi
+kondisi yang selalu benar (1=1), sehingga server memberikan akses tanpa validasi password. Itu
+menunjukkan server menjalankan query SQL yang menggabungkan input user langsung ke
+pernyataan SQL (concatenation) tanpa parameterization (prepared statements — pernyataan
+ter-parameterisasi) atau validasi input.
+Dampak:
+● Kompromi akun admin (akses penuh ke fungsi admin).
+● Potensi perubahan data, akses ke fitur sensitif, pemasangan backdoor, atau eskalasi lebih
+lanjut.
+Pemetaan GRC:
+● Severity: CRITICAL (10.0)
+● CWE: CWE-89: Improper Neutralization of Special Elements used in an SQL Command
+(‘SQL Injection’)
+● ISO 27001:2022: A.8.28 (Secure coding), A.5.15 (Access control)
+
+-- 3 of 16 --
+
+● NIST SP 800–53: SI-10 (Information Input Validation), AC-3 (Access Enforcement)
+2. SQL Injection ( Data Exfiltration via sqlmap)
+Target: Endpoint /rest/products/search (search bar)
+URL: 10.10.20.10:8001/rest/products/search
+Command: sqlmap -u "http://10.10.20.10:8001/rest/products/search?q=test" -D
+"SQLite_masterdb" -T "Users" -C "password" --dump --batch
+Celah SQLi pada fitur pencarian (/rest/products/search) di-eksploitasi menggunakan sqlmap
+untuk men-dump seluruh tabel Users, termasuk hash password, dan kemudian melakukan
+cracking hash.
+
+-- 4 of 16 --
+
+Tampilan di terminal saat menjalankan sqlmap (tool otomasi untuk menguji dan mengeksploitasi
+SQLi). Targeting endpoint .../rest/products/search yang menunjuk ke database SQLite_masterdb.
+sqlmap = alat (tool) otomatis untuk mendeteksi dan mengeksploitasi kerentanan SQL Injection;
+sqlite = database berbasis file.
+sqlmap mendeteksi bahwa kolom password mengandung hash (algoritma MD5 terdeteksi). Tool
+menanyakan apakah ingin mencoba crack hash.
+hash = hasil fungsi kriptografis satu arah yang merepresentasikan data (mis. password); MD5 =
+algoritma hashing (sudah lemah/tidak aman untuk password).
+
+-- 5 of 16 --
+
+Hasil dump tabel Users: kolom password berisi nilai hash, dan beberapa password berhasil
+di-crack 	(diubah 	kembali 	menjadi 	plaintext) 	— 	contoh: 	admin123.
+Konfirmasi bahwa dump selesai dan disimpan sebagai file CSV di sistem lokal.
+Analisis teknis singkat:
+Endpoint pencarian mengoper input pengguna langsung ke query SQL tanpa filtering atau
+parameterisasi. sqlmap memanfaatkan ini untuk menginjeksi payload yang membawa hasil query
+
+-- 6 of 16 --
+
+(SELECT) ke output, sehingga bisa membaca struktur database dan mengekspor (dump) isi
+tabel. Menemukan hash yang menggunakan MD5 mempermudah cracking karena MD5 lemah
+dan ada kamus/hash-lookup besar.
+Endpoint pencarian rentan terhadap time-based blind injection. sqlmap memanfaatkan ini untuk
+mengekspor (dump) isi tabel. Ditemukannya hash MD5 (algoritma yang sudah usang)
+mempermudah proses offline cracking.
+Dampak:
+● Kebocoran seluruh data pengguna (email, hash password, informasi lain).
+● Jika password dapat di-crack, akun menjadi langsung kompromi.
+● Potensi pelanggaran privasi besar dan kerusakan reputasi.
+Pemetaan GRC:
+● Severity: CRITICAL (10.0)
+● CWE: CWE-89 (sama seperti di atas)
+● ISO 27001:2022: A.8.28 (Secure coding), A.5.14 (Cryptographic controls)
+3. IDOR - Broken Access Control
+IDOR (Insecure Direct Object Reference) terjadi ketika aplikasi gagal memvalidasi apakah
+pengguna yang meminta suatu data adalah pemilik sah dari data tersebut.
+Kita menggunakan Burp Suite Repeater. Header Authorization (token login ) tetap sama, namun
+dengan mengubah ID di URL (misal: /rest/basket/1, /rest/basket/2, /rest/basket/6), server "secara
+buta" mengembalikan data keranjang milik pengguna lain.
+Menunjukkan bukti baseline untuk dua user berbeda sehingga nantinya kita bisa membandingkan
+hasil saat melakukan serangan IDOR (mengubah parameter ID resource) pada Burp Repeater
+untuk mengakses data milik user lain (admin) saat login sebagai user biasa.
+
+-- 7 of 16 --
+
+Baseline User A (anna12@email.com)
+Tampilan isi keranjang milik user biasa anna12@email.com. Isi: Apple Pomace dan Banana
+Juice. Berfungsi sebagai baseline (patokan) isi keranjang user biasa.
+Baseline User B (admin@juice-sh.op).
+
+-- 8 of 16 --
+
+Tampilan isi keranjang milik admin admin@juice-sh.op. Isi: Apple Juice, Orange Juice, dan
+Eggfruit Juice. Berfungsi sebagai target pembanding, jika setelah serangan IDOR kamu melihat
+isi keranjang ini saat login sebagai anna12, itu bukti berhasilnya pengaksesan objek admin.
+Dampaknya pelanggaran privasi pengguna. Penyerang dapat mengumpulkan data intelijen
+tentang pola belanja atau item sensitif yang ada di keranjang pengguna lain (termasuk admin).
+IDOR (Insecure Direct Object Reference / broken access control) terjadi ketika aplikasi
+mengekspos identifier (ID) internal — mis. cartId, orderId, atau userId — dan tidak melakukan
+pengecekan akses (access control) yang memadai sebelum mengembalikan data. Skenario
+latihan: endpoint yang mengambil isi keranjang menerima parameter ID; attacker (yang login
+sebagai anna12) mengubah ID di request (mis. via Burp Repeater) menjadi ID keranjang admin.
+Jika server mengembalikan isi keranjang admin tanpa memverifikasi bahwa peminta memang
+pemiliknya atau memiliki hak akses, maka itu adalah IDOR.
+Pemetaan GRC:
+● Severity: HIGH (7.5)
+● CWE: CWE-639: Authorization Bypass Through User-Controlled Key
+● ISO 27001:2022: A.5.15 (Access control), A.8.3 (Information access restriction)
+● NIST SP 800–53: AC-3 (Access Enforcement), AC-6 (Least Privilege)
+IDOR via Burp Suite Repeater
+Menunjukkan bahwa, sebagai satu pengguna yang login, bisa melihat isi keranjang semua
+pengguna lain hanya dengan mengganti-ganti angka ID pada endpoint GET /rest/basket/{id}.
+Catatan: Semua screenshot PoC diambil dari Burp Suite Repeater (tab yang dipakai untuk
+memodifikasi dan mengirim ulang HTTP request secara manual).
+
+-- 9 of 16 --
+
+GET /rest/basket/20 (mungkin keranjang milikmu atau kosong).
+Response data: null → keranjang kosong. Wajar.
+GET /rest/basket/11/1 (typo; seharusnya /11).
+Masih data: null.
+
+-- 10 of 16 --
+
+GET /rest/basket/1 (mencoba ID umum).
+SUKSES — server membalas JSON berisi item "Apple Juice".
+Header Authorization di request tetap menggunakan token milik user biasa; namun response
+menunjukkan isi keranjang milik admin (cartId = 1). Ini menandakan server tidak memeriksa
+apakah peminta adalah pemilik cartId.
+
+-- 11 of 16 --
+
+Aksi: GET /rest/basket/2
+SUKSES - menerima Orange Juice dan Eggfruit Juice.
+GET /rest/basket/11
+SUKSES - menerima Apple Pomace.
+GET /rest/basket/6
+
+-- 12 of 16 --
+
+SUKSES menerima Banana Juice.
+Kesimpulan Endpoint GET /rest/basket/{id} sama sekali gagal melakukan authorization check
+(pemeriksaan otorisasi/kepemilikan), sehingga siapa pun yang tahu/menebak ID bisa melihat isi
+keranjang siapapun. Ini adalah IDOR (Insecure Direct Object Reference / broken access control)
+dengan severity Medium–High tergantung konteks (data sensitif yang ditemukan).
+4. Cross-Site Scripting (XSS)
+XSS pada search bar membuktikan bagaimana satu titik input yang lemah bisa dieksploitasi
+dengan berbagai cara, dari sekadar pop-up hingga pengambilalihan akun.
+Fitur pencarian gagal melakukan sanitasi input, yang memungkinkan tiga jenis serangan:
+● Reflected XSS: Payload <img src=x onerror=alert('xss')> dieksekusi, membuktikan script
+arbitrer bisa berjalan.
+● HTML Injection: Payload <a href="...situs-phishing.com">Klik di sini!</a> berhasil
+me-render link palsu di halaman hasil pencarian, sebuah PoC sempurna untuk phishing.
+● CSTI 	(Client-Side 	Template 	Injection): 	Payload 	AngularJS
+{{constructor.constructor('alert(1)')()}} berhasil dieksekusi, membuktikan adanya celah
+yang lebih dalam di level framework.
+Server “memantulkan” apa pun di parameter q= (pencarian) langsung ke halaman. Ini
+memungkinkan injeksi tag HTML (<img>, <a>) dan juga sintaks template AngularJS ({{...}}).
+a. Temuan: Reflected XSS (Payload Sederhana)
+Ini adalah pembuktian awal bahwa celahnya ada.
+
+-- 13 of 16 --
+
+Ini adalah PoC XSS paling klasik. Kita menyuntikkan payload <img src=x onerror=alert('xss')>.
+Karena server tidak memfilter input kamu, dia "memantulkan" HTML itu kembali ke browser.
+Browser mencoba memuat gambar src=x (yang tidak ada), ini memicu onerror, dan script
+alert('xss') pun tereksekusi. Pop-up ini adalah buktinya.
+Ini adalah variasi payload XSS dengan menambahkan atribut style="display:none" untuk
+menyembunyikan elemen gambar dari tampilan halaman. Meskipun elemen tersebut tidak
+terlihat, event onerror tetap berhasil dieksekusi dan memunculkan JavaScript alert bertuliskan
+
+-- 14 of 16 --
+
+XSS. Hal ini menunjukkan bahwa input masih dapat dieksploitasi melalui HTML injection dan
+mekanisme sanitasi atau filtering aplikasi belum mampu mencegah eksekusi JavaScript pada
+skenario pengujian ini.
+b. Reflected XSS (Dampak Nyata: Pencurian Cookie!)
+Ini adalah “bom”-nya. Jauh lebih bahaya dari alert('xss')
+Pengujian menunjukkan bahwa payload XSS berhasil membaca informasi cookie melalui
+document.cookie. Hasilnya memperlihatkan bahwa beberapa cookie, termasuk JWT yang
+memuat informasi autentikasi dan identitas pengguna, dapat diakses oleh JavaScript. Kondisi ini
+berpotensi menyebabkan pencurian token autentikasi dan meningkatkan risiko Session Hijacking
+maupun Account Takeover apabila token tersebut masih valid dan dapat digunakan oleh pihak
+tidak berwenang.
+c. HTML Injection (Skenario Phishing)
+Ini adalah temuan terkait, di mana kita tidak menyuntikkan script, tapi menyuntikkan HTML
+biasa untuk menipu pengguna.
+
+-- 15 of 16 --
+
+Kita menyuntikkan tag HTML standar: <a href="https...pointerpointer.com">Cake!</a>. Server
+lagi-lagi "memantulkannya" begitu saja. Hasilnya, halaman "Search Results" yang sah sekarang
+menampilkan link "Cake!" palsu.
+Ini adalah hasil dari screenshot saat pengguna mengklik link “Cake!” yang kita suntikkan,
+mereka berhasil dialihkan ke situs eksternal (pointerpointer.com).
+Jelaskan ini adalah PoC sempurna untuk serangan Phishing. Penyerang bisa mengarahkan korban
+ke situs login palsu untuk mencuri password mereka.
+
+-- 16 of 16 --
+

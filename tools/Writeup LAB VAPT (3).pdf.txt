@@ -1,0 +1,144 @@
+Vulnerability Finding
+1. SQL Injection – Privilege Escalation via User Search
+Fitur pencarian produk diduga memproses input pengguna secara tidak aman dalam perintah
+SQL. Kondisi tersebut memungkinkan penyerang menyisipkan perintah SQL tambahan melalui
+kolom pencarian.
+Pada skenario yang didokumentasikan repository, manipulasi SQL digunakan untuk
+menambahkan hak akses administrator kepada akun pengguna biasa.
+Proof of Concept (PoC)
+Buka halaman Home Page
+Login menggunakan akun user1@localhost.com dengan password password, masukkan 12345
+sebagai OTP
+
+-- 1 of 12 --
+
+Arahkan kursor ke username di kanan atas layar, tepat di sebelah ikon Search. Perhatikan bahwa
+dropdown menu berisi Home, API Explorer, dan Logout
+
+-- 2 of 12 --
+
+None
+Klik menu SHOP, daftar produk yang tersedia akan ditampilkan
+Pada search textbox, masukkan payload berikut:
+'; 	INSERT 	INTO 	user_authorities 	(authority_id, 	user_id) 	VALUES
+('05970e74-c82b-4e21-b100-f8184d6e3454', '32e7db01-86bc-4687-9ecb-d79b265ac14f') --
+Lalu klik ikon Search, pesan seperti berikut akan ditampilkan
+
+-- 3 of 12 --
+
+None
+Impact
+● Pengguna biasa dapat memperoleh hak akses administrator.
+● Penyerang berpotensi melakukan manipulasi data dan fungsi administratif.
+● Integritas dan kerahasiaan data aplikasi dapat terganggu.
+2. Reflected Cross-Site Scripting (XSS)
+Aplikasi memiliki fitur pencarian yang memproses input pengguna tanpa melakukan encoding
+atau sanitasi output secara memadai. Hal ini memungkinkan input berupa script
+HTML/JavaScript direfleksikan dan dieksekusi oleh browser.
+Proof of Concept
+Buka menu SHOP → Health & Well being → First Aid
+Pada search textbox, masukkan payload berikut ini dan Klik Search
+<i><script>alert("hi")</script></i>
+
+-- 4 of 12 --
+
+Script yang terdapat pada search term akan dieksekusi dan menunjukkan adanya kerentanan
+Impact
+● Penyerang dapat menjalankan JavaScript pada browser korban
+● Informasi yang tersedia dalam konteks halaman berpotensi diakses
+● Pengguna dapat diarahkan atau ditampilkan konten berbahaya
+3. Information Disclosure via SQL Error and Stack Trace
+Aplikasi menampilkan pesan kesalahan beserta stack trace secara lengkap ketika menerima input
+tertentu. Informasi tersebut turut memperlihatkan perintah SQL yang digunakan aplikasi,
+termasuk nama tabel dan kolom database.
+Pengungkapan informasi internal seperti ini dapat membantu penyerang memahami struktur
+aplikasi dan database.
+
+-- 5 of 12 --
+
+None
+Proof of Concept (PoC)
+Klik menu SHOP
+Pada search textbox, masukkan input berikut dan Klik Search
+test'
+
+-- 6 of 12 --
+
+Halaman error yang menampilkan full stack trace akan muncul. Stack trace tersebut
+memperlihatkan keseluruhan perintah SQL yang digunakan sehingga informasi sensitif seperti
+nama kolom dan tabel ikut terekspos.
+Impact
+● Struktur internal aplikasi dan database dapat diketahui oleh pengguna
+● Informasi teknis dapat membantu penyerang menyusun serangan lanjutan.
+● Detail implementasi aplikasi yang seharusnya tidak tersedia bagi pengguna dapat terekspos
+4. XML External Entity (XXE) Injection
+Fitur upload XML pada aplikasi memproses dokumen XML tanpa konfigurasi parser yang
+membatasi pemrosesan external entity. Kondisi ini memungkinkan dokumen XML memuat
+entity yang merujuk pada sumber eksternal, termasuk file lokal pada server.
+Proof of Concep
+Buka halaman Home Page dan login menggunakan akun user1@localhost.com dengan password
+password, masukkan 12345 sebagai OTP. Klik menu User
+Klik menu Upload XML Files dari halaman user home
+Upload file XML apa pun dengan mengeklik Choose File dan Submit.
+
+-- 7 of 12 --
+
+None
+Setelah file berhasil di-upload, aplikasi akan menampilkan file dan conten
+Ganti content dengan payload berikut
+<!--?xml version="1.0" ?--><!DOCTYPE replace[<!ENTITY example "Doe">
+]><userInfo><firstName>John</firstName><lastName>&example;</lastName></userInfo>
+Klik tautan Save di bawah content box. Hasil pemrosesan XML seharusnya menampilkan last
+name sebagai "Doe"
+
+-- 8 of 12 --
+
+Impact
+● File lokal pada server berpotensi dibaca melalui pemrosesan XML.
+● Informasi konfigurasi dan file sistem dapat terekspos.
+● Jika konfigurasi dan lingkungan mendukung, XXE juga dapat dimanfaatkan untuk
+mengakses sumber daya internal lainnya.
+5. Command Injection melalui Fitur Command Shell
+Aplikasi menyediakan fitur Command Shell yang memungkinkan pengguna memasukkan
+perintah Windows untuk dieksekusi oleh server. Input tersebut diproses sebagai perintah sistem
+tanpa pembatasan yang memadai. Kondisi ini memungkinkan pengguna menjalankan perintah
+sistem operasi melalui aplikasi web
+
+-- 9 of 12 --
+
+None
+Proof of Concept
+Klik menu Command Shell dari halaman user home
+Masukkan perintah berikut pada text box Windows Command To Execute:
+cmd /c echo "calc.exe" > C:\\a06-vul-java.bat & C:\\a06-vul-java.bat
+
+-- 10 of 12 --
+
+None
+File a06-vul-java.bat akan tersedia, berhasil dijalankan, dan aplikasi Calculator akan terbuka
+Impact
+● Pengguna dapat menjalankan perintah sistem operasi melalui aplikasi
+● Penyerang berpotensi mengakses atau memanipulasi sumber daya server sesuai hak akses
+proses aplikasi
+● Kerentanan dapat menjadi jalur menuju kompromi sistem yang lebih luas
+6. Log Forging (Log Injection)
+Aplikasi memungkinkan input pengguna dimasukkan ke dalam log tanpa validasi atau sanitasi
+yang memadai. Kondisi ini memungkinkan pengguna menyisipkan teks yang menyerupai entri
+log resmi sehingga menghasilkan log palsu.
+Proof of Concept
+Klik menu Log Entry dari halaman user home, masukkan 17 sebagai baris pertama, lalu
+masukkan teks berikut sebagai baris kedu
+2022-08-09 02:46:04.136 INFO 2654 --- [nio-8080-exec-3] c.m.e.w.c.UserController
+: Order payment reversed successfully for user1
+
+-- 11 of 12 --
+
+Klik Submit, pada console aplikasi web (cmd window), pesan Order payment reversed
+successfully for user1 akan tercatat pada baris terpisah sebagai entri log yang valid
+Impact
+● Log aplikasi dapat berisi entri palsu yang dibuat oleh pengguna
+● Proses investigasi insiden dapat terganggu akibat informasi log yang menyesatkan
+● Integritas dan keandalan data logging dapat menurun
+
+-- 12 of 12 --
+

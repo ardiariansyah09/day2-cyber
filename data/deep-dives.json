@@ -1,0 +1,189 @@
+[
+  {
+    "id": "HTTP: metode, header, dan status",
+    "en": "HTTP: methods, headers, and status codes",
+    "points": [
+      "GET membaca resource; POST mengirim data untuk diproses atau membuat resource; DELETE meminta penghapusan.",
+      "Header seperti Content-Type memberi tahu format data; Cookie dapat membawa identitas sesi.",
+      "2xx berhasil; 3xx pengalihan; 4xx masalah request/akses; 5xx kesalahan server. 401 berarti belum terautentikasi; 403 berarti akses tidak diizinkan."
+    ],
+    "pointsEn": [
+      "GET retrieves a resource; POST submits data for processing or creation; DELETE requests removal.",
+      "Content-Type describes the data format; Cookie can carry a session identifier.",
+      "2xx success; 3xx redirection; 4xx client/request errors; 5xx server errors. 401 means unauthenticated; 403 means forbidden."
+    ],
+    "example": "GET /api/orders/12 → 200 OK\nPOST /api/orders → 201 Created\nDELETE /api/orders/12 → 403 Forbidden",
+    "takeaway": "Status HTTP menjelaskan hasil request, bukan otomatis menyatakan sistem aman.",
+    "takeawayEn": "An HTTP status describes the request outcome; it does not prove security."
+  },
+  {
+    "id": "Pemetaan permukaan serangan",
+    "en": "Mapping the attack surface",
+    "points": [
+      "Catat fitur dan jalur yang terlihat, termasuk endpoint API dan metode HTTP.",
+      "Bedakan parameter query (?q=), parameter path (/items/42), body JSON, dan cookie.",
+      "Kelompokkan endpoint publik dan endpoint yang membutuhkan login; catat ruang lingkup pengujian."
+    ],
+    "pointsEn": [
+      "Record visible features, API endpoints, and HTTP methods.",
+      "Distinguish query parameters, path parameters, JSON bodies, and cookies.",
+      "Separate public and authenticated endpoints; document the authorized scope."
+    ],
+    "example": "GET /products\nGET /api/search?q=mouse\nGET /api/products/42\nGET /api/me",
+    "takeaway": "Endpoint yang ditemukan belum tentu rentan; pemetaan menentukan apa yang akan diuji.",
+    "takeawayEn": "Finding an endpoint does not imply a vulnerability; mapping guides the tests."
+  },
+  {
+    "id": "Memahami request yang dicegat",
+    "en": "Understanding intercepted requests",
+    "points": [
+      "Proxy menampilkan metode, URL, header, cookie, dan body sebelum request diteruskan.",
+      "Replay mengirim ulang salinan request untuk membandingkan hasil saat satu nilai diubah.",
+      "Nilai dari browser tidak boleh menjadi sumber kebenaran untuk harga atau hak akses."
+    ],
+    "pointsEn": [
+      "A proxy shows method, URL, headers, cookies, and body before forwarding.",
+      "Replay resends a saved request to compare results after changing one value.",
+      "Browser-supplied values must not be trusted for prices or access rights."
+    ],
+    "example": "POST /api/checkout\n{\"item\":\"A1\",\"clientTotal\":1000}\nServer: recalculate using catalog prices",
+    "takeaway": "Mengubah request membantu menguji apakah server memvalidasi input dengan benar.",
+    "takeawayEn": "Editing requests helps test whether the server validates input correctly."
+  },
+  {
+    "id": "Login, cookie, dan siklus sesi",
+    "en": "Login, cookies, and session lifecycle",
+    "points": [
+      "Authentication membuktikan siapa pengguna; sesi menjaga identitas pada request berikutnya.",
+      "Cookie sesi sebaiknya memakai HttpOnly, Secure, dan SameSite sesuai kebutuhan.",
+      "Logout harus membatalkan sesi di server; mengganti tampilan halaman saja tidak cukup."
+    ],
+    "pointsEn": [
+      "Authentication verifies identity; sessions preserve it across requests.",
+      "Session cookies should use HttpOnly, Secure, and appropriate SameSite settings.",
+      "Logout must invalidate the server-side session, not just change the UI."
+    ],
+    "example": "POST /login → Set-Cookie: session=abc; HttpOnly; Secure\nGET /api/me → 200 OK\nPOST /logout → session revoked\nGET /api/me (old cookie) → 401",
+    "takeaway": "Sesi lama yang masih dapat digunakan setelah logout menunjukkan masalah pengelolaan sesi.",
+    "takeawayEn": "A session that remains usable after logout indicates a session-management problem."
+  },
+  {
+    "id": "Autentikasi bukan otorisasi",
+    "en": "Authentication is not authorization",
+    "points": [
+      "Login menjawab 'siapa Anda?'; authorization menjawab 'bolehkah Anda melakukan tindakan ini?'.",
+      "Periksa izin terhadap objek yang diminta pada setiap request, bukan hanya pada menu frontend.",
+      "IDOR/BOLA muncul ketika pengguna dapat meminta objek milik orang lain tanpa pemeriksaan yang benar."
+    ],
+    "pointsEn": [
+      "Authentication answers who you are; authorization answers what you may do.",
+      "Check object-level permission on every request, not just in frontend menus.",
+      "IDOR/BOLA occurs when another user's object is accessible without proper checks."
+    ],
+    "example": "Andi → GET /orders/104 → 200 OK\nAndi → GET /orders/105 (milik Budi) → 403 Forbidden",
+    "takeaway": "Jangan menganggap ID yang sulit ditebak sebagai pengganti pemeriksaan izin.",
+    "takeawayEn": "Hard-to-guess IDs are not a replacement for authorization checks."
+  },
+  {
+    "id": "Data pengguna dan struktur SQL",
+    "en": "User data versus SQL structure",
+    "points": [
+      "SQL Injection terjadi ketika input tidak dipercaya mengubah struktur query yang dijalankan.",
+      "Menggabungkan input dengan string SQL mencampur data dan perintah.",
+      "Parameterized query mengirim struktur SQL dan nilai parameter secara terpisah."
+    ],
+    "pointsEn": [
+      "SQL injection happens when untrusted input changes executed query structure.",
+      "String concatenation mixes user data with SQL commands.",
+      "Parameterized queries separate query structure from parameter values."
+    ],
+    "example": "TIDAK AMAN: 'SELECT ... WHERE name = ' + input\nAMAN: SELECT ... WHERE name = ?\nparameter = [input]",
+    "takeaway": "Validasi input berguna, tetapi parameterisasi adalah kontrol utama untuk query SQL.",
+    "takeawayEn": "Input validation helps, but parameterization is the key SQL query defense."
+  },
+  {
+    "id": "XSS, CSRF, dan CORS berbeda",
+    "en": "XSS, CSRF, and CORS are different",
+    "points": [
+      "XSS: data tidak dipercaya diperlakukan sebagai kode/markup dalam konteks browser.",
+      "CSRF: browser pengguna terautentikasi dibujuk mengirim tindakan yang tidak dikehendaki.",
+      "CORS: kebijakan browser tentang origin mana yang boleh membaca respons lintas origin."
+    ],
+    "pointsEn": [
+      "XSS: untrusted data is interpreted as code or markup in a browser context.",
+      "CSRF: an authenticated browser is tricked into sending an unwanted action.",
+      "CORS: browser rules governing which origins may read cross-origin responses."
+    ],
+    "example": "XSS: element.textContent = comment\nCSRF: validate anti-CSRF token / Origin\nCORS: restrict Access-Control-Allow-Origin",
+    "takeaway": "Ketiganya memiliki penyebab dan perbaikan berbeda; jangan memakai satu kontrol untuk semuanya.",
+    "takeawayEn": "They have different causes and defenses; one control does not solve all three."
+  },
+  {
+    "id": "Unggah file dan traversal path",
+    "en": "File upload and path traversal",
+    "points": [
+      "Upload perlu pembatasan tipe, ukuran, penyimpanan, dan akses ke file.",
+      "Path traversal mencoba mengakses lokasi di luar direktori yang diizinkan.",
+      "Normalisasi/resolusi path dan pemeriksaan batas direktori harus dilakukan di server."
+    ],
+    "pointsEn": [
+      "Uploads require checks for type, size, storage location, and access.",
+      "Path traversal attempts to access locations outside an allowed directory.",
+      "Resolve paths and enforce directory boundaries on the server."
+    ],
+    "example": "/app/uploads/avatar.png → allowed\n/app/uploads/../config/settings.json → blocked",
+    "takeaway": "Memeriksa hanya awalan string path mentah tidak cukup untuk menjamin batas direktori.",
+    "takeawayEn": "Checking only the raw path prefix is not enough to enforce directory boundaries."
+  },
+  {
+    "id": "Konfigurasi aman di produksi",
+    "en": "Safe production configuration",
+    "points": [
+      "Mode debug dan stack trace dapat membuka path, nama komponen, dan detail internal.",
+      "Rahasia aplikasi tidak boleh ditanam dalam JavaScript publik atau repository terbuka.",
+      "Batasi fitur, akun, dan izin sesuai kebutuhan; catat error rinci di log internal."
+    ],
+    "pointsEn": [
+      "Debug mode and stack traces may reveal paths, components, and internals.",
+      "Secrets must not be embedded in public JavaScript or open repositories.",
+      "Restrict features and permissions; store detailed errors in internal logs."
+    ],
+    "example": "PUBLIC: {\"message\":\"Terjadi kesalahan\",\"ref\":\"E-104\"}\nINTERNAL LOG: stack trace + correlation ID",
+    "takeaway": "Pesan error publik harus membantu pengguna tanpa membocorkan rincian sensitif.",
+    "takeawayEn": "Public errors should help users without exposing sensitive internals."
+  },
+  {
+    "id": "Aturan bisnis dan transisi status",
+    "en": "Business rules and state transitions",
+    "points": [
+      "Aturan bisnis mengatur kapan tindakan boleh dilakukan, bukan sekadar format input.",
+      "Status pesanan harus berpindah sesuai aturan: keranjang → dibayar → dikirim.",
+      "Server perlu mencegah pengulangan kupon, perubahan harga, dan transisi status tidak sah."
+    ],
+    "pointsEn": [
+      "Business rules control when actions are allowed, beyond input formats.",
+      "Order states must follow rules: cart → paid → shipped.",
+      "Servers must prevent coupon reuse, price tampering, and invalid state transitions."
+    ],
+    "example": "Keranjang → Bayar: valid\nKeranjang → Kirim: tidak valid\nDibayar → Refund: sesuai kebijakan",
+    "takeaway": "Periksa proses end-to-end, bukan hanya setiap endpoint secara terpisah.",
+    "takeawayEn": "Test end-to-end workflows, not just isolated endpoints."
+  },
+  {
+    "id": "Dari pengujian menjadi laporan",
+    "en": "From testing to reporting",
+    "points": [
+      "Tentukan ruang lingkup, tujuan, dan langkah pengujian sesuai WSTG.",
+      "Simpan bukti request/response yang relevan dan samarkan data sensitif.",
+      "Jelaskan dampak, akar masalah, perbaikan, dan hasil retest secara terpisah."
+    ],
+    "pointsEn": [
+      "Define scope, objectives, and test steps following WSTG.",
+      "Save relevant request/response evidence and redact sensitive data.",
+      "Separate impact, root cause, remediation, and retest results."
+    ],
+    "example": "Temuan: BOLA pada GET /orders/:id\nBukti: request akun A mengakses data B\nPerbaikan: object-level authorization\nRetest: 403 untuk akun tanpa izin",
+    "takeaway": "Temuan yang baik dapat direproduksi dan mempunyai rekomendasi yang dapat diverifikasi.",
+    "takeawayEn": "A good finding is reproducible and has verifiable remediation."
+  }
+]

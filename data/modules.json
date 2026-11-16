@@ -1,0 +1,1674 @@
+[
+  {
+    "id": "2.1",
+    "title": "HTTP & Web Architecture",
+    "hook": "Browser meminta data, server menentukan respons",
+    "concept": "Request terdiri atas method, URL, headers, dan body opsional. Response memiliki status, headers, dan body. Cookie sering membawa session ID, tetapi cookie sendiri bukan bukti bahwa pemiliknya boleh mengakses semua resource.",
+    "scenario": "Saat membuka /api/orders/12, browser tidak langsung membaca database: server menerima request, mengenali sesi, memeriksa izin, lalu mengirim response.",
+    "request": "GET /api/orders/12 HTTP/1.1\nHost: demo.local\nCookie: session=demo-andi",
+    "response": "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\"id\":12,\"owner\":\"andi\"}",
+    "analysis": "200 OK berarti request berhasil diproses; bukan berarti endpoint aman. Pemeriksaan izin tetap diperlukan.",
+    "visual": "http",
+    "options": [
+      "GET",
+      "POST",
+      "DELETE"
+    ],
+    "outcomes": [
+      "GET cocok membaca resource; server mengirim 200 dengan data contoh.",
+      "POST dipakai membuat/mengirim data; endpoint contoh mengembalikan 201 Created.",
+      "DELETE memerlukan izin khusus; pada skenario contoh ditolak 403."
+    ],
+    "questions": [
+      {
+        "q": "Bagian HTTP yang menunjukkan aksi yang diminta?",
+        "options": [
+          "Method",
+          "Cookie",
+          "Body",
+          "Status"
+        ],
+        "answer": 0,
+        "why": "Method seperti GET atau POST menyatakan aksi pada resource."
+      },
+      {
+        "q": "Kode 403 berarti apa?",
+        "options": [
+          "Berhasil login",
+          "Server menolak akses",
+          "Resource dibuat",
+          "Browser offline"
+        ],
+        "answer": 1,
+        "why": "403 Forbidden menandakan server memahami request tetapi menolak akses."
+      },
+      {
+        "q": "Apakah 200 menjamin keamanan?",
+        "options": [
+          "Ya",
+          "Tidak",
+          "Hanya pada POST",
+          "Hanya HTTPS"
+        ],
+        "answer": 1,
+        "why": "Status berhasil tidak membuktikan kontrol akses benar."
+      },
+      {
+        "q": "Tempat status HTTP berada?",
+        "options": [
+          "Request line",
+          "Response status line",
+          "Cookie",
+          "Query"
+        ],
+        "answer": 1,
+        "why": "Response diawali status seperti HTTP/1.1 200 OK."
+      },
+      {
+        "q": "Apa fungsi cookie sesi?",
+        "options": [
+          "Mengubah SQL",
+          "Membawa identitas sesi",
+          "Menambah izin admin",
+          "Mengganti HTTPS"
+        ],
+        "answer": 1,
+        "why": "Cookie dapat mengaitkan request dengan sesi, bukan memberi hak otomatis."
+      }
+    ],
+    "duration": 30,
+    "en": {
+      "hook": "The browser requests data; the server decides how to respond.",
+      "concept": "An HTTP request has a method, URL, headers, and sometimes a body. A response contains a status, headers, and a body. A session cookie identifies a session but does not automatically grant access to every resource.",
+      "scenario": "When opening /api/orders/12, the browser does not read the database directly. The server receives the request, identifies the session, checks permissions, and returns a response.",
+      "analysis": "200 OK means a request was processed successfully; it does not prove the endpoint is secure. Access checks are still required.",
+      "outcomes": [
+        "GET reads a resource; this example returns 200 OK and the requested data.",
+        "POST submits data to create a new resource; this example returns 201 Created.",
+        "DELETE attempts to remove a resource; the example user lacks permission, so the server returns 403 Forbidden."
+      ],
+      "options": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "questions": [
+        {
+          "q": "Which HTTP element describes the requested action?",
+          "options": [
+            "Method",
+            "Cookie",
+            "Body",
+            "Status"
+          ],
+          "answer": 0,
+          "why": "GET, POST, and DELETE are HTTP methods."
+        },
+        {
+          "q": "What does HTTP 403 indicate?",
+          "options": [
+            "Login succeeded",
+            "Access was denied",
+            "Resource was created",
+            "Browser is offline"
+          ],
+          "answer": 1,
+          "why": "403 Forbidden means the server refuses the request."
+        },
+        {
+          "q": "Does HTTP 200 prove an endpoint is secure?",
+          "options": [
+            "Yes",
+            "No",
+            "Only for POST",
+            "Only with HTTPS"
+          ],
+          "answer": 1,
+          "why": "A successful response does not prove correct authorization."
+        },
+        {
+          "q": "Where does the HTTP status code appear?",
+          "options": [
+            "Request line",
+            "Response status line",
+            "Cookie",
+            "Query parameter"
+          ],
+          "answer": 1,
+          "why": "The response starts with a status such as HTTP/1.1 200 OK."
+        },
+        {
+          "q": "What does a session cookie usually carry?",
+          "options": [
+            "SQL code",
+            "A session identifier",
+            "Admin privileges",
+            "An HTTPS replacement"
+          ],
+          "answer": 1,
+          "why": "A cookie may identify a session but does not automatically grant permissions."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.2",
+    "title": "Web Reconnaissance",
+    "hook": "Kenali permukaan aplikasi sebelum menguji",
+    "concept": "Reconnaissance adalah pemetaan fitur, endpoint, parameter, dan teknologi yang terlihat. Tujuannya memahami cakupan pengujian yang diizinkan, bukan menebak celah tanpa arah.",
+    "scenario": "Halaman produk memiliki endpoint /products, /api/search?q=, dan /api/products/:id. Setiap input membentuk permukaan uji yang berbeda.",
+    "request": "GET /api/search?q=mouse HTTP/1.1\nHost: demo.local",
+    "response": "HTTP/1.1 200 OK\n\n{\"results\":[\"Mouse USB\"]}",
+    "analysis": "Parameter q adalah input yang perlu diuji validasinya. Endpoint tersembunyi tidak otomatis rentan.",
+    "visual": "map",
+    "options": [
+      "Halaman",
+      "Endpoint",
+      "Parameter"
+    ],
+    "outcomes": [
+      "Halaman memberi petunjuk fitur yang dapat diamati.",
+      "Endpoint adalah alamat fungsi aplikasi yang masuk cakupan.",
+      "Parameter adalah masukan yang perlu dicatat dan diuji terkontrol."
+    ],
+    "questions": [
+      {
+        "q": "Apa tujuan reconnaissance?",
+        "options": [
+          "Menghapus data",
+          "Memetakan permukaan uji",
+          "Mengubah password",
+          "Melewati login"
+        ],
+        "answer": 1,
+        "why": "Recon memetakan fitur, endpoint, parameter, dan teknologi."
+      },
+      {
+        "q": "q pada /search?q=abc adalah?",
+        "options": [
+          "Header",
+          "Parameter query",
+          "Cookie",
+          "Status"
+        ],
+        "answer": 1,
+        "why": "q adalah parameter dalam URL."
+      },
+      {
+        "q": "Apakah endpoint tak terlihat pasti rentan?",
+        "options": [
+          "Ya",
+          "Tidak",
+          "Hanya API",
+          "Hanya admin"
+        ],
+        "answer": 1,
+        "why": "Tidak terlihat di UI bukan bukti kerentanan."
+      },
+      {
+        "q": "Yang perlu dicatat saat pemetaan?",
+        "options": [
+          "Warna tombol",
+          "Endpoint dan parameter",
+          "Ukuran layar",
+          "Nama browser"
+        ],
+        "answer": 1,
+        "why": "Endpoint dan parameter membantu menentukan cakupan."
+      },
+      {
+        "q": "Batas utama recon yang benar?",
+        "options": [
+          "Semua domain",
+          "Cakupan yang diizinkan",
+          "Hanya localhost",
+          "Tanpa dokumentasi"
+        ],
+        "answer": 1,
+        "why": "Recon harus berada dalam scope yang disepakati."
+      }
+    ],
+    "duration": 30,
+    "en": {
+      "hook": "Map the application before testing it.",
+      "concept": "Reconnaissance maps visible features, endpoints, parameters, and technologies. Its purpose is to understand the authorized testing scope, not to guess vulnerabilities at random.",
+      "scenario": "A product page uses /products, /api/search?q=, and /api/products/:id. Each input creates a different area to examine.",
+      "analysis": "An undocumented endpoint is not automatically vulnerable. Record inputs and remain within the authorized scope.",
+      "outcomes": [
+        "Pages reveal visible application features.",
+        "Endpoints identify functions within the authorized testing scope.",
+        "Parameters carry user input that should be documented and tested carefully."
+      ],
+      "options": [
+        "Page",
+        "Endpoint",
+        "Parameter"
+      ],
+      "questions": [
+        {
+          "q": "What is the main purpose of reconnaissance?",
+          "options": [
+            "Map the attack surface",
+            "Delete data",
+            "Change passwords",
+            "Bypass login"
+          ],
+          "answer": 0,
+          "why": "Reconnaissance identifies features and inputs within the approved scope."
+        },
+        {
+          "q": "Which example contains a query parameter?",
+          "options": [
+            "/products",
+            "/api/search?q=phone",
+            "/login",
+            "/about"
+          ],
+          "answer": 1,
+          "why": "The q value after the question mark is a query parameter."
+        },
+        {
+          "q": "Does an undocumented endpoint prove a vulnerability?",
+          "options": [
+            "Always",
+            "Never needs testing",
+            "Not by itself",
+            "Only on mobile"
+          ],
+          "answer": 2,
+          "why": "An endpoint must be assessed before drawing conclusions."
+        },
+        {
+          "q": "What must be established before testing?",
+          "options": [
+            "Scope and permission",
+            "A new domain",
+            "Admin access",
+            "Production credentials"
+          ],
+          "answer": 0,
+          "why": "Authorization and scope define where testing is allowed."
+        },
+        {
+          "q": "Which item should be documented?",
+          "options": [
+            "Endpoint and input",
+            "Only page color",
+            "Only logo",
+            "Only screen size"
+          ],
+          "answer": 0,
+          "why": "Endpoints and parameters are important testing inputs."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.3",
+    "title": "Intercepting Proxy",
+    "hook": "Amati lalu lintas, bukan hanya tampilan",
+    "concept": "Intercepting proxy menempatkan alat inspeksi di antara browser dan aplikasi. Ia membantu melihat request sebenarnya, mengubah nilai uji, dan membandingkan response.",
+    "scenario": "Tombol Bayar mungkin mengirim POST /api/checkout dengan body JSON. Mengubah angka di browser tidak berarti server akan mempercayainya.",
+    "request": "POST /api/checkout HTTP/1.1\nContent-Type: application/json\n\n{\"cartId\":7,\"total\":100000}",
+    "response": "HTTP/1.1 200 OK\n\n{\"charged\":100000}",
+    "analysis": "Server harus menghitung ulang total dari data tepercaya, bukan menerima total dari klien begitu saja.",
+    "visual": "proxy",
+    "options": [
+      "Request asli",
+      "Ubah total",
+      "Server validasi"
+    ],
+    "outcomes": [
+      "Request asli diproses dengan total yang dihitung server.",
+      "Total dari klien berubah, tetapi tidak boleh dipercaya.",
+      "Server menghitung ulang dan menolak ketidaksesuaian."
+    ],
+    "questions": [
+      {
+        "q": "Proxy inspeksi ditempatkan di mana?",
+        "options": [
+          "Antara browser dan server",
+          "Di database",
+          "Di CSS",
+          "Di DNS saja"
+        ],
+        "answer": 0,
+        "why": "Proxy memeriksa lalu lintas request/response."
+      },
+      {
+        "q": "Apa yang dapat diamati proxy?",
+        "options": [
+          "HTTP request",
+          "RAM server langsung",
+          "Kunci enkripsi database",
+          "File lokal server"
+        ],
+        "answer": 0,
+        "why": "Proxy dapat melihat request yang melewatinya."
+      },
+      {
+        "q": "Siapa memvalidasi total transaksi?",
+        "options": [
+          "Browser",
+          "Server",
+          "CSS",
+          "URL bar"
+        ],
+        "answer": 1,
+        "why": "Server menghitung ulang berdasarkan data tepercaya."
+      },
+      {
+        "q": "Replay request berguna untuk?",
+        "options": [
+          "Membandingkan hasil",
+          "Menghapus log",
+          "Mempercepat CPU",
+          "Membuat akun admin"
+        ],
+        "answer": 0,
+        "why": "Replay membantu pengujian terkontrol."
+      },
+      {
+        "q": "Mengubah request berarti server pasti mengikuti?",
+        "options": [
+          "Ya",
+          "Tidak",
+          "Hanya GET",
+          "Hanya JSON"
+        ],
+        "answer": 1,
+        "why": "Server seharusnya memvalidasi seluruh input."
+      }
+    ],
+    "duration": 30,
+    "en": {
+      "hook": "Inspect requests before the server processes them.",
+      "concept": "An intercepting proxy sits between the browser and server. It lets you inspect, modify, and replay requests in an authorized test environment.",
+      "scenario": "A shopping cart sends a total price in a request. An attacker may change the value before it reaches the server.",
+      "analysis": "Client-provided totals cannot be trusted. The server must calculate prices from trusted data.",
+      "outcomes": [
+        "The original request uses the server-calculated total.",
+        "The client changes the total, but the server must not trust it.",
+        "The server recalculates the price and rejects mismatched values."
+      ],
+      "options": [
+        "Original request",
+        "Change total",
+        "Server validation"
+      ],
+      "questions": [
+        {
+          "q": "What can an intercepting proxy inspect?",
+          "options": [
+            "HTTP messages",
+            "CPU temperature",
+            "Disk sectors",
+            "Monitor brightness"
+          ],
+          "answer": 0,
+          "why": "A proxy can inspect requests and responses passing through it."
+        },
+        {
+          "q": "Why is a client-supplied price risky?",
+          "options": [
+            "It is always encrypted",
+            "It can be changed",
+            "It cannot be logged",
+            "It is always correct"
+          ],
+          "answer": 1,
+          "why": "A client can modify its own request values."
+        },
+        {
+          "q": "Where should a final price be calculated?",
+          "options": [
+            "Browser only",
+            "CSS",
+            "Server",
+            "URL fragment"
+          ],
+          "answer": 2,
+          "why": "The server should calculate trusted totals."
+        },
+        {
+          "q": "What is request replay?",
+          "options": [
+            "Sending a stored request again",
+            "Deleting browser history",
+            "Restarting a computer",
+            "Changing screen size"
+          ],
+          "answer": 0,
+          "why": "Replay resends a previously captured request."
+        },
+        {
+          "q": "Where should proxy testing occur?",
+          "options": [
+            "Any random site",
+            "Authorized lab",
+            "Unrelated public systems",
+            "Without permission"
+          ],
+          "answer": 1,
+          "why": "Only systems within the permitted testing scope may be tested."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.4",
+    "title": "Authentication Testing",
+    "hook": "Login sukses bukan akhir keamanan",
+    "concept": "Authentication memastikan identitas pengguna. Mekanisme login, reset password, MFA, sesi, dan logout membentuk satu siklus yang harus aman.",
+    "scenario": "Sesi lama seharusnya tidak tetap berlaku setelah logout atau perubahan kredensial penting.",
+    "request": "POST /api/login HTTP/1.1\nContent-Type: application/json\n\n{\"email\":\"andi@demo.local\",\"password\":\"***\"}",
+    "response": "HTTP/1.1 200 OK\nSet-Cookie: sid=DEMO; HttpOnly; Secure; SameSite=Lax",
+    "analysis": "Cookie sesi harus dilindungi; token contoh di slide bukan kredensial sungguhan.",
+    "visual": "auth",
+    "options": [
+      "Login benar",
+      "Password salah",
+      "Sesi setelah logout"
+    ],
+    "outcomes": [
+      "Login valid menghasilkan sesi contoh.",
+      "Kredensial salah ditolak tanpa mengungkap akun mana yang ada.",
+      "Sesi yang sudah logout harus ditolak."
+    ],
+    "questions": [
+      {
+        "q": "Authentication memeriksa?",
+        "options": [
+          "Identitas",
+          "Harga",
+          "Warna",
+          "Urutan produk"
+        ],
+        "answer": 0,
+        "why": "Authentication memastikan siapa pengguna."
+      },
+      {
+        "q": "Apa yang harus terjadi setelah logout?",
+        "options": [
+          "Sesi tetap valid",
+          "Sesi dinonaktifkan",
+          "Role naik",
+          "Password ditampilkan"
+        ],
+        "answer": 1,
+        "why": "Sesi harus tidak lagi diterima."
+      },
+      {
+        "q": "Password salah sebaiknya?",
+        "options": [
+          "Membocorkan akun",
+          "Ditolak aman",
+          "Memberi token",
+          "Menghapus user"
+        ],
+        "answer": 1,
+        "why": "Pesan error tidak perlu mengungkap keberadaan akun."
+      },
+      {
+        "q": "HttpOnly membantu?",
+        "options": [
+          "Membatasi akses cookie dari JS",
+          "Menghapus CSRF sepenuhnya",
+          "Menambah role",
+          "Membuka CORS"
+        ],
+        "answer": 0,
+        "why": "HttpOnly membatasi pembacaan cookie oleh JavaScript."
+      },
+      {
+        "q": "MFA terutama menambah?",
+        "options": [
+          "Lapisan verifikasi identitas",
+          "Kecepatan query",
+          "Hak admin",
+          "Ukuran cookie"
+        ],
+        "answer": 0,
+        "why": "MFA menambah faktor verifikasi."
+      }
+    ],
+    "duration": 40,
+    "en": {
+      "hook": "Logging in is only the start of session security.",
+      "concept": "Authentication verifies identity. A secure session must be created, protected, expired, and revoked correctly.",
+      "scenario": "A user signs in, receives a session identifier, then signs out. A copied old session must no longer work.",
+      "analysis": "Logout should invalidate the server-side session, not merely hide the user interface.",
+      "outcomes": [
+        "Valid credentials create a demonstration session.",
+        "Invalid credentials are rejected without revealing whether the account exists.",
+        "A session used after logout must be rejected."
+      ],
+      "options": [
+        "Correct login",
+        "Wrong password",
+        "Session after logout"
+      ],
+      "questions": [
+        {
+          "q": "What does authentication verify?",
+          "options": [
+            "User identity",
+            "Database schema",
+            "Screen size",
+            "Page layout"
+          ],
+          "answer": 0,
+          "why": "Authentication verifies who the user is."
+        },
+        {
+          "q": "What should logout do?",
+          "options": [
+            "Change CSS",
+            "Revoke the server session",
+            "Refresh the page only",
+            "Keep the old token valid"
+          ],
+          "answer": 1,
+          "why": "Logout must invalidate the session server-side."
+        },
+        {
+          "q": "What should happen to a wrong password?",
+          "options": [
+            "Grant access",
+            "Reveal account existence",
+            "Reject login",
+            "Create an admin session"
+          ],
+          "answer": 2,
+          "why": "Invalid credentials must not authenticate the user."
+        },
+        {
+          "q": "Why rotate session IDs after login?",
+          "options": [
+            "Reduce session fixation risk",
+            "Make pages faster",
+            "Change colors",
+            "Remove HTTPS"
+          ],
+          "answer": 0,
+          "why": "Rotating identifiers reduces session fixation exposure."
+        },
+        {
+          "q": "Which cookie attribute helps prevent JavaScript access?",
+          "options": [
+            "HttpOnly",
+            "Width",
+            "Font",
+            "Position"
+          ],
+          "answer": 0,
+          "why": "HttpOnly prevents JavaScript from reading the cookie."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.5",
+    "title": "Authorization Testing",
+    "hook": "Sudah login, boleh melihat data siapa?",
+    "concept": "Authorization memeriksa apakah identitas tertentu boleh menjalankan aksi pada objek tertentu. Pemeriksaan harus dilakukan di server untuk setiap resource sensitif.",
+    "scenario": "Andi memiliki pesanan 104, Budi memiliki 105. Mengganti ID di URL tidak boleh memberi Andi akses ke pesanan Budi.",
+    "request": "GET /api/orders/105 HTTP/1.1\nCookie: sid=andi",
+    "response": "HTTP/1.1 403 Forbidden\n\n{\"error\":\"access denied\"}",
+    "analysis": "IDOR terjadi bila server hanya mencari objek berdasarkan ID tanpa memeriksa kepemilikannya.",
+    "visual": "authz",
+    "options": [
+      "Pesanan Andi",
+      "Pesanan Budi",
+      "Tanpa sesi"
+    ],
+    "outcomes": [
+      "Akses ke pesanan sendiri diizinkan.",
+      "Akses Andi ke pesanan Budi harus ditolak.",
+      "Tanpa sesi valid, server meminta autentikasi."
+    ],
+    "questions": [
+      {
+        "q": "Authorization memeriksa?",
+        "options": [
+          "Hak terhadap objek",
+          "Identitas saja",
+          "Versi browser",
+          "DNS"
+        ],
+        "answer": 0,
+        "why": "Authorization mengecek izin aksi pada resource."
+      },
+      {
+        "q": "Andi mengakses pesanan Budi adalah?",
+        "options": [
+          "Normal",
+          "Potensi IDOR",
+          "XSS",
+          "CORS"
+        ],
+        "answer": 1,
+        "why": "Jika diizinkan tanpa hak, itu broken object-level authorization."
+      },
+      {
+        "q": "Pemeriksaan izin harus di?",
+        "options": [
+          "CSS",
+          "Server",
+          "Tombol disabled saja",
+          "LocalStorage saja"
+        ],
+        "answer": 1,
+        "why": "Server menjadi otoritas keputusan akses."
+      },
+      {
+        "q": "Apakah ID acak menggantikan izin?",
+        "options": [
+          "Ya",
+          "Tidak",
+          "Selalu",
+          "Hanya UUID"
+        ],
+        "answer": 1,
+        "why": "ID sulit ditebak bukan pengganti authorization."
+      },
+      {
+        "q": "Akses lintas role disebut?",
+        "options": [
+          "Vertical access control issue",
+          "DNS leak",
+          "CSRF",
+          "Cache miss"
+        ],
+        "answer": 0,
+        "why": "Akses fungsi role lebih tinggi tanpa izin adalah masalah vertikal."
+      }
+    ],
+    "duration": 40,
+    "en": {
+      "hook": "Being logged in does not grant access to every record.",
+      "concept": "Authorization checks whether a particular user may perform an action on a particular object. Authentication and authorization solve different problems.",
+      "scenario": "Andi requests his own order, then changes the order ID to one owned by Budi.",
+      "analysis": "The server must check ownership and role for every request, not just the login state.",
+      "outcomes": [
+        "Access to Andi’s own order is allowed.",
+        "Andi’s request for Budi’s order must be denied.",
+        "Without a valid session, the server requires authentication."
+      ],
+      "options": [
+        "Andi’s order",
+        "Budi’s order",
+        "No session"
+      ],
+      "questions": [
+        {
+          "q": "What does authorization decide?",
+          "options": [
+            "What a user may access",
+            "Who wrote the CSS",
+            "Which browser is installed",
+            "How large a file is"
+          ],
+          "answer": 0,
+          "why": "Authorization enforces permissions for actions and objects."
+        },
+        {
+          "q": "What is an IDOR-related weakness?",
+          "options": [
+            "Changing an object ID reveals another user’s data",
+            "A missing logo",
+            "A slow animation",
+            "A typo in HTML"
+          ],
+          "answer": 0,
+          "why": "Missing object-level authorization may expose another user’s resource."
+        },
+        {
+          "q": "What should happen when Andi requests Budi’s private order?",
+          "options": [
+            "Allow",
+            "Deny",
+            "Change ownership",
+            "Disable HTTPS"
+          ],
+          "answer": 1,
+          "why": "The server must enforce ownership or other relevant access rules."
+        },
+        {
+          "q": "When must permissions be checked?",
+          "options": [
+            "Only at login",
+            "On each protected request",
+            "Only on logout",
+            "Never"
+          ],
+          "answer": 1,
+          "why": "Authorization must be enforced at every protected operation."
+        },
+        {
+          "q": "Is authentication the same as authorization?",
+          "options": [
+            "Yes",
+            "No",
+            "Only for admins",
+            "Only for GET"
+          ],
+          "answer": 1,
+          "why": "Identity verification and permission enforcement are different."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.6",
+    "title": "Injection Testing",
+    "hook": "Ketika data dianggap sebagai perintah",
+    "concept": "Injection muncul saat input tak tepercaya disisipkan ke interpreter sebagai bagian dari sintaks. Untuk SQL, gunakan parameterized query agar nilai tidak mengubah struktur perintah.",
+    "scenario": "Pencarian produk aman memisahkan query SQL dari nilai pencarian. Penggabungan string membuka risiko perubahan logika query.",
+    "request": "// RENTAN\nconst sql = \"SELECT * FROM items WHERE name= + q + \";",
+    "response": "// AMAN\ndb.query(\"SELECT * FROM items WHERE name = ?\", [q]);",
+    "analysis": "Perbedaan utamanya bukan karakter input, melainkan pemisahan antara kode SQL dan data.",
+    "visual": "sql",
+    "options": [
+      "Input normal",
+      "Input berisi tanda kutip",
+      "Query parameter"
+    ],
+    "outcomes": [
+      "Input biasa mencari produk yang cocok.",
+      "Tanda kutip dapat merusak sintaks pada query yang digabung langsung.",
+      "Parameterized query memperlakukan seluruh input sebagai data."
+    ],
+    "questions": [
+      {
+        "q": "Akar SQL injection?",
+        "options": [
+          "Input menjadi bagian sintaks query",
+          "Font salah",
+          "HTTPS aktif",
+          "Cookie Secure"
+        ],
+        "answer": 0,
+        "why": "Pemisahan kode dan data gagal."
+      },
+      {
+        "q": "Perbaikan utama SQLi?",
+        "options": [
+          "Parameterized query",
+          "Regex saja",
+          "Sembunyikan error saja",
+          "Ganti warna"
+        ],
+        "answer": 0,
+        "why": "Parameter menjaga input sebagai nilai."
+      },
+      {
+        "q": "Apakah validasi input saja cukup?",
+        "options": [
+          "Selalu",
+          "Tidak",
+          "Hanya SQLite",
+          "Hanya GET"
+        ],
+        "answer": 1,
+        "why": "Validasi membantu, tetapi parameterisasi tetap diperlukan."
+      },
+      {
+        "q": "Tanda kutip dalam input seharusnya?",
+        "options": [
+          "Mengubah query",
+          "Diproses sebagai data",
+          "Membuka admin",
+          "Mematikan server"
+        ],
+        "answer": 1,
+        "why": "Parameterized query memperlakukan karakter input sebagai data."
+      },
+      {
+        "q": "SQLi dapat memengaruhi?",
+        "options": [
+          "Kerahasiaan dan integritas data",
+          "Hanya CSS",
+          "Hanya DNS",
+          "Hanya layout"
+        ],
+        "answer": 0,
+        "why": "Dampak bergantung pada hak database dan query."
+      }
+    ],
+    "duration": 55,
+    "en": {
+      "hook": "Keep user input separate from executable queries.",
+      "concept": "Injection occurs when untrusted input is interpreted as part of a command or query. Parameterized SQL queries keep values separate from query syntax.",
+      "scenario": "A search endpoint builds SQL by concatenating the search text directly into a query string.",
+      "analysis": "A quote character may break an unsafe query; the solution is parameter binding, not simply blocking quotes.",
+      "outcomes": [
+        "A normal search value returns matching products.",
+        "A quote may break an unsafe concatenated SQL query.",
+        "A parameterized query treats all supplied characters as data."
+      ],
+      "options": [
+        "Normal input",
+        "Input containing a quote",
+        "Parameterized query"
+      ],
+      "questions": [
+        {
+          "q": "What causes SQL injection?",
+          "options": [
+            "Untrusted input changes query syntax",
+            "A long CSS file",
+            "An expired image",
+            "A small viewport"
+          ],
+          "answer": 0,
+          "why": "Unsafe query construction can interpret user input as SQL syntax."
+        },
+        {
+          "q": "Which is the preferred defense?",
+          "options": [
+            "Parameterized queries",
+            "Hide the input",
+            "Change font",
+            "Only block quotes"
+          ],
+          "answer": 0,
+          "why": "Bound parameters keep input data separate from SQL syntax."
+        },
+        {
+          "q": "What may a quote character reveal?",
+          "options": [
+            "Unsafe query concatenation",
+            "Network speed",
+            "Disk capacity",
+            "User location"
+          ],
+          "answer": 0,
+          "why": "A quote can expose unsafe string-based query building."
+        },
+        {
+          "q": "What does a parameterized query treat input as?",
+          "options": [
+            "Executable code",
+            "SQL keywords",
+            "Data",
+            "A database administrator"
+          ],
+          "answer": 2,
+          "why": "Parameters are bound as values rather than executable syntax."
+        },
+        {
+          "q": "Should error messages expose raw SQL?",
+          "options": [
+            "Yes",
+            "No",
+            "Only in production",
+            "Always for guests"
+          ],
+          "answer": 1,
+          "why": "Detailed SQL errors should remain in internal diagnostics."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.7",
+    "title": "Client-Side Security",
+    "hook": "Browser juga memiliki batas keamanan",
+    "concept": "XSS terjadi ketika data tak tepercaya diperlakukan sebagai markup atau script. CSRF berkaitan dengan request atas nama pengguna, sedangkan CORS mengatur akses respons lintas origin. Ketiganya berbeda.",
+    "scenario": "Menampilkan komentar sebagai textContent berbeda dari memasukkannya langsung sebagai innerHTML.",
+    "request": "// RENTAN\noutput.innerHTML = userComment;",
+    "response": "// AMAN\noutput.textContent = userComment;",
+    "analysis": "Output encoding sesuai konteks mencegah browser menafsirkan data sebagai HTML aktif.",
+    "visual": "browser",
+    "options": [
+      "Teks biasa",
+      "Tag HTML",
+      "Render sebagai teks"
+    ],
+    "outcomes": [
+      "Komentar biasa tampil sebagai teks.",
+      "Markup dari input tidak boleh dijalankan sebagai kode.",
+      "textContent menampilkan karakter HTML sebagai teks literal."
+    ],
+    "questions": [
+      {
+        "q": "textContent dibanding innerHTML?",
+        "options": [
+          "Menampilkan input sebagai teks",
+          "Menjalankan script",
+          "Mengubah CORS",
+          "Membuat token"
+        ],
+        "answer": 0,
+        "why": "textContent tidak menafsirkan input sebagai HTML."
+      },
+      {
+        "q": "XSS terjadi di mana?",
+        "options": [
+          "Konteks browser",
+          "Routing IP",
+          "Hard disk saja",
+          "SMTP saja"
+        ],
+        "answer": 0,
+        "why": "XSS memanfaatkan interpretasi konten pada browser."
+      },
+      {
+        "q": "CSRF memanfaatkan?",
+        "options": [
+          "Request yang membawa otoritas pengguna",
+          "Query SQL langsung",
+          "DNS cache",
+          "File ZIP"
+        ],
+        "answer": 0,
+        "why": "CSRF mengeksploitasi request lintas situs dengan otoritas korban."
+      },
+      {
+        "q": "CORS terutama mengatur?",
+        "options": [
+          "Akses respons lintas origin",
+          "Login password",
+          "Path traversal",
+          "SQL syntax"
+        ],
+        "answer": 0,
+        "why": "CORS membatasi pembacaan respons lintas origin oleh browser."
+      },
+      {
+        "q": "Perbaikan XSS bergantung pada?",
+        "options": [
+          "Konteks output",
+          "Ukuran font",
+          "Nomor port saja",
+          "Status 200"
+        ],
+        "answer": 0,
+        "why": "Encoding dan API aman disesuaikan dengan konteks output."
+      }
+    ],
+    "duration": 50,
+    "en": {
+      "hook": "The browser has several different trust boundaries.",
+      "concept": "Cross-site scripting, cross-site request forgery, and cross-origin resource sharing concern different browser security mechanisms. Context-aware encoding and server-side validation matter.",
+      "scenario": "A website displays user comments, accepts state-changing requests, and communicates with other origins.",
+      "analysis": "XSS, CSRF, and CORS are not the same vulnerability. Understand the trust boundary in each case.",
+      "outcomes": [
+        "Plain comments are displayed as text.",
+        "HTML supplied by a user must not be executed as application code.",
+        "textContent displays HTML-like characters as literal text."
+      ],
+      "options": [
+        "Plain text",
+        "HTML tag",
+        "Render as text"
+      ],
+      "questions": [
+        {
+          "q": "What is a common XSS root cause?",
+          "options": [
+            "Rendering untrusted input as executable markup",
+            "Using HTTPS",
+            "Setting a title",
+            "Compressing images"
+          ],
+          "answer": 0,
+          "why": "Unsafe rendering can allow browser-side code execution."
+        },
+        {
+          "q": "What does textContent do?",
+          "options": [
+            "Renders input as text",
+            "Executes scripts",
+            "Changes user roles",
+            "Disables cookies"
+          ],
+          "answer": 0,
+          "why": "textContent displays characters literally instead of parsing HTML."
+        },
+        {
+          "q": "What does CSRF primarily target?",
+          "options": [
+            "Unauthorized state-changing requests",
+            "Image resolution",
+            "SQL indexes",
+            "Slide navigation"
+          ],
+          "answer": 0,
+          "why": "CSRF abuses authenticated browser requests when defenses are missing."
+        },
+        {
+          "q": "What does CORS control?",
+          "options": [
+            "Cross-origin response access by scripts",
+            "Database permissions",
+            "Password strength",
+            "File ownership"
+          ],
+          "answer": 0,
+          "why": "CORS determines whether scripts from other origins may read responses."
+        },
+        {
+          "q": "Are XSS and CSRF the same issue?",
+          "options": [
+            "Yes",
+            "No",
+            "Only in Chrome",
+            "Only with POST"
+          ],
+          "answer": 1,
+          "why": "They involve different trust boundaries and defenses."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.8",
+    "title": "File & Path Testing",
+    "hook": "Nama file tidak boleh mengendalikan seluruh filesystem",
+    "concept": "Path traversal terjadi ketika input path dapat keluar dari direktori yang diizinkan. Upload juga membutuhkan pemeriksaan tipe, lokasi penyimpanan, dan hak akses.",
+    "scenario": "Aplikasi membaca documents/readme.txt. Jika menerima ../ tanpa batasan, proses dapat keluar dari folder documents.",
+    "request": "// RENTAN\nconst file = path.join(baseDir, userFile);\nreturn readFileSync(file);",
+    "response": "// AMAN (konsep)\nconst resolved = path.resolve(baseDir, userFile);\nif (!resolved.startsWith(baseDir + path.sep)) throw Error(\"Forbidden\");",
+    "analysis": "Pemeriksaan prefix harus memakai path yang dinormalisasi dan batas direktori; symlink dan race condition perlu penanganan tambahan.",
+    "visual": "file",
+    "options": [
+      "readme.txt",
+      "../secret.txt",
+      "subdir/help.txt"
+    ],
+    "outcomes": [
+      "File di direktori yang diizinkan dapat dibaca.",
+      "Percobaan keluar dari direktori dasar ditolak.",
+      "Subfolder yang berada dalam direktori dasar dapat diizinkan."
+    ],
+    "questions": [
+      {
+        "q": "../ pada path dapat berarti?",
+        "options": [
+          "Naik direktori",
+          "Enkripsi",
+          "Login",
+          "HTTP POST"
+        ],
+        "answer": 0,
+        "why": ".. merujuk ke direktori induk."
+      },
+      {
+        "q": "path.join sendiri menjamin batas folder?",
+        "options": [
+          "Ya",
+          "Tidak",
+          "Hanya Windows",
+          "Hanya Linux"
+        ],
+        "answer": 1,
+        "why": "Normalisasi path tidak otomatis membatasi direktori."
+      },
+      {
+        "q": "Upload perlu memeriksa?",
+        "options": [
+          "Tipe, lokasi, dan akses",
+          "Nama warna",
+          "Hanya ekstensi",
+          "Hanya ukuran layar"
+        ],
+        "answer": 0,
+        "why": "Validasi upload harus berlapis."
+      },
+      {
+        "q": "File di luar base directory seharusnya?",
+        "options": [
+          "Ditolak",
+          "Dibaca",
+          "Dipindah",
+          "Diindeks"
+        ],
+        "answer": 0,
+        "why": "Akses di luar direktori izin harus ditolak."
+      },
+      {
+        "q": "Symlink relevan karena?",
+        "options": [
+          "Bisa menunjuk keluar dari folder",
+          "Mengubah HTTP",
+          "Membuat cookie",
+          "Menghapus SQL"
+        ],
+        "answer": 0,
+        "why": "Symlink dapat melewati pemeriksaan path sederhana."
+      }
+    ],
+    "duration": 35,
+    "en": {
+      "hook": "File names must never bypass directory boundaries.",
+      "concept": "File and path testing checks how an application validates file names, upload contents, storage paths, and access permissions.",
+      "scenario": "A download endpoint reads a file name from a request and joins it with an uploads directory.",
+      "analysis": "Normalize paths, enforce the permitted directory boundary, and check file permissions.",
+      "outcomes": [
+        "An allowed file can be read from the permitted directory.",
+        "A path attempting to escape the base directory is rejected.",
+        "An allowed file in a subdirectory may be read if access rules permit it."
+      ],
+      "options": [
+        "readme.txt",
+        "../secret.txt",
+        "subdir/help.txt"
+      ],
+      "questions": [
+        {
+          "q": "What is path traversal?",
+          "options": [
+            "Escaping an allowed directory through path input",
+            "Changing slide order",
+            "Opening a browser tab",
+            "Setting a cookie"
+          ],
+          "answer": 0,
+          "why": "Untrusted paths may reference files outside an allowed directory."
+        },
+        {
+          "q": "Which input attempts to move to a parent directory?",
+          "options": [
+            "readme.txt",
+            "../secret.txt",
+            "avatar.png",
+            "help.pdf"
+          ],
+          "answer": 1,
+          "why": "The ../ segment references a parent directory."
+        },
+        {
+          "q": "What should a download endpoint verify?",
+          "options": [
+            "Resolved path and permissions",
+            "Only file extension",
+            "Only screen size",
+            "Only URL color"
+          ],
+          "answer": 0,
+          "why": "Validate the final resolved path and the user’s access rights."
+        },
+        {
+          "q": "Can an allowed subfolder contain readable files?",
+          "options": [
+            "Yes, if permitted",
+            "Never",
+            "Only on Windows",
+            "Only for admins"
+          ],
+          "answer": 0,
+          "why": "Access rules may permit files within approved subdirectories."
+        },
+        {
+          "q": "Why is extension checking alone insufficient?",
+          "options": [
+            "It does not establish content or permissions",
+            "It always encrypts files",
+            "It blocks all uploads",
+            "It replaces authentication"
+          ],
+          "answer": 0,
+          "why": "File type and access checks require more than the extension."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.9",
+    "title": "Security Misconfiguration",
+    "hook": "Konfigurasi dapat membuka informasi sensitif",
+    "concept": "Misconfiguration mencakup debug aktif di produksi, pesan error terlalu detail, header keamanan hilang, dan layanan administratif yang terekspos.",
+    "scenario": "Kesalahan database tidak seharusnya menampilkan stack trace, query SQL, dan lokasi file internal kepada pengguna.",
+    "request": "HTTP/1.1 500 Internal Server Error\n\nSQL syntax error at /srv/app/db.js:44",
+    "response": "HTTP/1.1 500 Internal Server Error\n\n{\"error\":\"Terjadi kesalahan. Coba lagi.\"}",
+    "analysis": "Pesan publik dibuat generik; detail teknis tetap dicatat secara aman pada log internal.",
+    "visual": "config",
+    "options": [
+      "Debug publik",
+      "Error generik",
+      "Header aman"
+    ],
+    "outcomes": [
+      "Debug publik dapat mengungkap detail internal.",
+      "Error generik tidak mengungkap implementasi.",
+      "Header keamanan menambah perlindungan sesuai konteks."
+    ],
+    "questions": [
+      {
+        "q": "Stack trace publik berisiko karena?",
+        "options": [
+          "Mengungkap detail internal",
+          "Memperbaiki UX",
+          "Membuat HTTPS",
+          "Menambah role"
+        ],
+        "answer": 0,
+        "why": "Stack trace mengungkap file, fungsi, dan struktur."
+      },
+      {
+        "q": "Debug di produksi sebaiknya?",
+        "options": [
+          "Dimatikan untuk publik",
+          "Selalu aktif",
+          "Dibagikan",
+          "Di URL"
+        ],
+        "answer": 0,
+        "why": "Debug publik menambah paparan informasi."
+      },
+      {
+        "q": "Error aman ke pengguna berisi?",
+        "options": [
+          "Pesan generik",
+          "Query lengkap",
+          "Password",
+          "Stack trace"
+        ],
+        "answer": 0,
+        "why": "Detail disimpan pada log internal."
+      },
+      {
+        "q": "Security header digunakan untuk?",
+        "options": [
+          "Memperkuat kebijakan browser",
+          "Mengganti authorization",
+          "Menambah RAM",
+          "Menghapus semua XSS"
+        ],
+        "answer": 0,
+        "why": "Header membantu pertahanan sesuai konteks."
+      },
+      {
+        "q": "Pengujian konfigurasi mencakup?",
+        "options": [
+          "Error dan komponen terbuka",
+          "Hanya UI",
+          "Hanya teks",
+          "Hanya warna"
+        ],
+        "answer": 0,
+        "why": "Paparan konfigurasi sering tampak di error atau layanan."
+      }
+    ],
+    "duration": 30,
+    "en": {
+      "hook": "Configuration mistakes can reveal internal details.",
+      "concept": "Security misconfiguration includes verbose errors, exposed debugging, unnecessary services, and missing protections.",
+      "scenario": "An application returns stack traces or database details directly to the browser when an error occurs.",
+      "analysis": "Give users safe error messages and keep sensitive diagnostics in internal logs.",
+      "outcomes": [
+        "Public debugging may expose internal implementation details.",
+        "A generic error avoids disclosing implementation details.",
+        "Security headers add context-dependent browser protections."
+      ],
+      "options": [
+        "Public debug",
+        "Generic error",
+        "Secure header"
+      ],
+      "questions": [
+        {
+          "q": "What is security misconfiguration?",
+          "options": [
+            "Unsafe application or infrastructure settings",
+            "A slow keyboard",
+            "A missing image",
+            "An old slide number"
+          ],
+          "answer": 0,
+          "why": "Unsafe settings can expose information or increase attack surface."
+        },
+        {
+          "q": "What should a public error show?",
+          "options": [
+            "A safe generic message",
+            "Database passwords",
+            "Full stack trace",
+            "Server private keys"
+          ],
+          "answer": 0,
+          "why": "Detailed diagnostics belong in protected logs."
+        },
+        {
+          "q": "What can verbose debugging expose?",
+          "options": [
+            "Internal implementation details",
+            "Only page colors",
+            "Only font size",
+            "Nothing"
+          ],
+          "answer": 0,
+          "why": "Debug output may reveal paths, queries, and internals."
+        },
+        {
+          "q": "Are security headers universally identical for every site?",
+          "options": [
+            "Yes",
+            "No, context matters",
+            "Only on mobile",
+            "Only for CSS"
+          ],
+          "answer": 1,
+          "why": "Header policies depend on the application’s architecture."
+        },
+        {
+          "q": "Where should detailed errors be recorded?",
+          "options": [
+            "Protected internal logs",
+            "Public HTML",
+            "URL parameters",
+            "Page title"
+          ],
+          "answer": 0,
+          "why": "Internal logs can retain details without exposing them publicly."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.10",
+    "title": "Business Logic Testing",
+    "hook": "Alur bisnis juga perlu divalidasi",
+    "concept": "Business logic flaw muncul ketika aturan proses dapat dilompati meskipun input dan sintaks tampak valid. Server harus memvalidasi urutan state dan aturan transaksi.",
+    "scenario": "Diskon hanya boleh dipakai sekali, pembayaran harus selesai sebelum pesanan ditandai terkirim.",
+    "request": "POST /api/orders/9/ship\n\n{\"status\":\"shipped\"}",
+    "response": "HTTP/1.1 409 Conflict\n\n{\"error\":\"payment required\"}",
+    "analysis": "Server tidak boleh menerima perubahan state hanya karena klien meminta status tertentu.",
+    "visual": "state",
+    "options": [
+      "Bayar lalu kirim",
+      "Kirim sebelum bayar",
+      "Pakai kupon dua kali"
+    ],
+    "outcomes": [
+      "Urutan valid diterima.",
+      "Pengiriman sebelum pembayaran ditolak.",
+      "Kupon satu kali pakai ditolak saat percobaan kedua."
+    ],
+    "questions": [
+      {
+        "q": "Business logic flaw sering terkait?",
+        "options": [
+          "Urutan proses yang dilompati",
+          "CSS",
+          "DNS",
+          "Gambar"
+        ],
+        "answer": 0,
+        "why": "Aturan workflow harus dipaksa server."
+      },
+      {
+        "q": "Pengiriman sebelum pembayaran seharusnya?",
+        "options": [
+          "Ditolak",
+          "Diterima",
+          "Menambah diskon",
+          "Reset sesi"
+        ],
+        "answer": 0,
+        "why": "State transition harus divalidasi."
+      },
+      {
+        "q": "Kupon satu kali pakai perlu?",
+        "options": [
+          "Validasi server",
+          "Tombol disabled saja",
+          "Warna merah",
+          "Cache browser"
+        ],
+        "answer": 0,
+        "why": "Aturan satu kali pakai tidak boleh hanya di UI."
+      },
+      {
+        "q": "State machine membantu?",
+        "options": [
+          "Memodelkan transisi yang diizinkan",
+          "Membuat CSS",
+          "Menambah cookie",
+          "Memilih font"
+        ],
+        "answer": 0,
+        "why": "State machine menggambarkan urutan valid."
+      },
+      {
+        "q": "Input valid berarti bisnis aman?",
+        "options": [
+          "Tidak selalu",
+          "Selalu",
+          "Hanya POST",
+          "Hanya admin"
+        ],
+        "answer": 0,
+        "why": "Logika bisnis dapat salah meski sintaks valid."
+      }
+    ],
+    "duration": 40,
+    "en": {
+      "hook": "The correct sequence of business actions matters.",
+      "concept": "Business logic security validates workflow transitions, transaction rules, prices, and single-use operations on the server.",
+      "scenario": "A checkout workflow should require payment before shipping and must prevent a coupon from being redeemed twice.",
+      "analysis": "Validate each state transition on the server and protect single-use actions against concurrent requests.",
+      "outcomes": [
+        "A valid pay-then-ship sequence is accepted.",
+        "Shipping before payment is rejected.",
+        "A one-time coupon is rejected on its second use."
+      ],
+      "options": [
+        "Pay then ship",
+        "Ship before paying",
+        "Use coupon twice"
+      ],
+      "questions": [
+        {
+          "q": "What does business logic testing examine?",
+          "options": [
+            "Workflow and rule enforcement",
+            "Only CSS",
+            "Only file names",
+            "Only screen resolution"
+          ],
+          "answer": 0,
+          "why": "Business logic tests whether application rules can be bypassed."
+        },
+        {
+          "q": "Should shipping occur before payment?",
+          "options": [
+            "Yes",
+            "No",
+            "Always for guests",
+            "Only on mobile"
+          ],
+          "answer": 1,
+          "why": "The example workflow requires successful payment first."
+        },
+        {
+          "q": "What should happen to a single-use coupon after redemption?",
+          "options": [
+            "Remain reusable",
+            "Be rejected on reuse",
+            "Become admin-only",
+            "Change color"
+          ],
+          "answer": 1,
+          "why": "A single-use coupon must not be redeemed twice."
+        },
+        {
+          "q": "Where should workflow transitions be validated?",
+          "options": [
+            "Server",
+            "Browser CSS",
+            "Page title",
+            "Image metadata"
+          ],
+          "answer": 0,
+          "why": "The server must enforce state transitions."
+        },
+        {
+          "q": "Why test concurrent coupon requests?",
+          "options": [
+            "Detect race conditions",
+            "Improve typography",
+            "Change HTTP methods",
+            "Remove authentication"
+          ],
+          "answer": 0,
+          "why": "Concurrent requests may expose non-atomic single-use checks."
+        }
+      ]
+    }
+  },
+  {
+    "id": "2.11",
+    "title": "OWASP WSTG & Reporting",
+    "hook": "Temuan yang baik harus dapat diverifikasi",
+    "concept": "OWASP Web Security Testing Guide membantu menyusun pengujian sistematis. Laporan yang baik mencatat cakupan, langkah reproduksi, bukti, dampak, rekomendasi, dan retest.",
+    "scenario": "Temuan IDOR perlu menunjukkan akun penguji, resource yang diminta, hasil yang tidak semestinya, serta pemeriksaan ulang setelah perbaikan.",
+    "request": "Finding: Akses objek tanpa pemeriksaan kepemilikan\nEvidence: request, response, akun uji",
+    "response": "Remediation: enforce object-level authorization\nRetest: akses silang ditolak",
+    "analysis": "Hindari menyatakan severity tanpa menilai dampak dan konteks. Hilangkan data sensitif dari bukti.",
+    "visual": "report",
+    "options": [
+      "Scope",
+      "Evidence",
+      "Retest"
+    ],
+    "outcomes": [
+      "Pastikan target dan izin pengujian terdokumentasi.",
+      "Catat request/response yang relevan tanpa membocorkan rahasia.",
+      "Uji ulang perbaikan dan simpan hasilnya."
+    ],
+    "questions": [
+      {
+        "q": "WSTG adalah?",
+        "options": [
+          "Panduan pengujian keamanan web",
+          "Bahasa pemrograman",
+          "Proxy",
+          "Database"
+        ],
+        "answer": 0,
+        "why": "WSTG menyusun metodologi pengujian."
+      },
+      {
+        "q": "Bukti temuan sebaiknya berisi?",
+        "options": [
+          "Langkah dan hasil relevan",
+          "Password asli",
+          "Data semua pengguna",
+          "Opini saja"
+        ],
+        "answer": 0,
+        "why": "Bukti perlu cukup untuk reproduksi tanpa membocorkan data."
+      },
+      {
+        "q": "Retest dilakukan kapan?",
+        "options": [
+          "Setelah perbaikan",
+          "Sebelum scope",
+          "Tanpa bukti",
+          "Setiap login"
+        ],
+        "answer": 0,
+        "why": "Retest memverifikasi perbaikan."
+      },
+      {
+        "q": "Severity ditentukan oleh?",
+        "options": [
+          "Dampak dan konteks",
+          "Warna UI",
+          "Panjang payload",
+          "Jumlah screenshot"
+        ],
+        "answer": 0,
+        "why": "Severity perlu mempertimbangkan konteks dan dampak."
+      },
+      {
+        "q": "Scope menentukan?",
+        "options": [
+          "Batas pengujian yang diizinkan",
+          "Tampilan CSS",
+          "Jenis keyboard",
+          "Jumlah browser"
+        ],
+        "answer": 0,
+        "why": "Scope adalah batas legal dan teknis pengujian."
+      }
+    ],
+    "duration": 45,
+    "en": {
+      "hook": "Test systematically and document evidence.",
+      "concept": "The OWASP Web Security Testing Guide provides a structured approach to planning tests, gathering evidence, reporting findings, and verifying fixes.",
+      "scenario": "A security tester records a reproducible issue, its impact, evidence, recommended fix, and retest results.",
+      "analysis": "A report needs scope, reproducible steps, evidence, impact, remediation, and verification.",
+      "outcomes": [
+        "Document the target and authorization scope.",
+        "Capture relevant request and response evidence without exposing secrets.",
+        "Retest the fix and record the outcome."
+      ],
+      "options": [
+        "Scope",
+        "Evidence",
+        "Retest"
+      ],
+      "questions": [
+        {
+          "q": "What is the OWASP WSTG?",
+          "options": [
+            "A structured web security testing guide",
+            "A database engine",
+            "A browser theme",
+            "A network cable"
+          ],
+          "answer": 0,
+          "why": "WSTG provides guidance for structured web security testing."
+        },
+        {
+          "q": "What should a finding include?",
+          "options": [
+            "Evidence and impact",
+            "Only a title",
+            "Only a screenshot",
+            "Only a score"
+          ],
+          "answer": 0,
+          "why": "Findings need reproducible evidence and a clear impact statement."
+        },
+        {
+          "q": "Why is scope important?",
+          "options": [
+            "It defines authorized targets",
+            "It makes pages brighter",
+            "It replaces testing",
+            "It grants admin rights"
+          ],
+          "answer": 0,
+          "why": "Scope documents what is permitted."
+        },
+        {
+          "q": "What is a retest?",
+          "options": [
+            "Verifying a reported fix",
+            "Deleting logs",
+            "Renaming files",
+            "Restarting slides"
+          ],
+          "answer": 0,
+          "why": "Retesting checks whether remediation resolved the issue."
+        },
+        {
+          "q": "How should sensitive evidence be handled?",
+          "options": [
+            "Minimize and protect it",
+            "Publish all secrets",
+            "Share credentials openly",
+            "Ignore permissions"
+          ],
+          "answer": 0,
+          "why": "Evidence should avoid unnecessary disclosure of sensitive data."
+        }
+      ]
+    }
+  }
+]

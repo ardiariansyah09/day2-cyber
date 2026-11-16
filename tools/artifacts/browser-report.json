@@ -1,0 +1,24 @@
+[
+  {
+    "lang": "id",
+    "slides": 216,
+    "minFit": 0.927,
+    "leakage": [],
+    "overflow": [],
+    "small": []
+  },
+  {
+    "lang": "en",
+    "slides": 216,
+    "minFit": 0.927,
+    "leakage": [],
+    "overflow": [],
+    "small": []
+  },
+  {
+    "viewport": "1366x768",
+    "slides": 216,
+    "minFit": 0.846,
+    "small": []
+  }
+]
